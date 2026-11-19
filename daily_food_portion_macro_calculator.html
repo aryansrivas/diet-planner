@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Food Portion & Macro Calculator</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+
+  <!-- Minimal custom styles for sleek range sliders and smooth number transitions -->
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Custom Range Slider Styling */
+    input[type='range'].food-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 9999px;
+      background: #e2e8f0;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type='range'].food-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 9999px;
+      background: #0f172a;
+      border: 3px solid #ffffff;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25);
+      cursor: pointer;
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    input[type='range'].food-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.12);
+      background: #059669;
+    }
+
+    input[type='range'].food-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 9999px;
+      background: #0f172a;
+      border: 3px solid #ffffff;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.25);
+      cursor: pointer;
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    input[type='range'].food-slider::-moz-range-thumb:hover {
+      transform: scale(1.12);
+      background: #059669;
+    }
+
+    /* Hide number input spinners for clean inline goal editing */
+    input[type='number']::-webkit-inner-spin-button,
+    input[type='number']::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type='number'] {
+      -moz-appearance: textfield;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900 min-h-screen antialiased selection:bg-emerald-100 selection:text-emerald-900">
+
+  <!-- Compact Floating Sticky Bar (Appears when scrolling past the main summary section) -->
+  <div
+    id="floatingSummaryBar"
+    class="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm transform -translate-y-full transition-transform duration-200"
+    aria-hidden="true"
+  >
+    <div class="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between gap-2 overflow-x-auto">
+      <span class="text-xs font-bold uppercase tracking-wider text-slate-400 hidden sm:inline shrink-0">Daily Totals</span>
+      <div class="flex items-center justify-between sm:justify-end gap-3 sm:gap-5 w-full sm:w-auto text-xs sm:text-sm font-semibold">
+        <div class="flex items-center gap-1.5 shrink-0">
+          <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+          <span id="floatCalories" class="text-slate-900 font-bold">0</span>
+          <span class="text-slate-400 font-normal">kcal</span>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span id="floatProtein" class="text-slate-900 font-bold">0g</span>
+          <span class="text-slate-400 font-normal hidden xs:inline">P</span>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+          <span id="floatCarbs" class="text-slate-900 font-bold">0g</span>
+          <span class="text-slate-400 font-normal hidden xs:inline">C</span>
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+          <span id="floatFats" class="text-slate-900 font-bold">0g</span>
+          <span class="text-slate-400 font-normal hidden xs:inline">F</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification (Non-blocking feedback instead of alert) -->
+  <div
+    id="toastMessage"
+    class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-lg opacity-0 pointer-events-none translate-y-2 transition-all duration-200"
+    role="status"
+    aria-live="polite"
+  ></div>
+
+  <!-- Main App Wrapper -->
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-16">
+
+    <!-- Top Header & Quick Actions -->
+    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div>
+        <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200/70 text-emerald-700 text-xs font-semibold mb-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          Lean Bulk Nutrition Tracker
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+          Daily Food Portion &amp; Macro Calculator
+        </h1>
+        <p class="text-sm text-slate-500 mt-1">
+          Adjust your daily servings across your 8 staple foods to hit your calorie and protein targets.
+        </p>
+      </div>
+
+      <!-- Quick Action Buttons -->
+      <div class="flex items-center gap-2.5 shrink-0">
+        <button
+          id="btnRecommended"
+          type="button"
+          class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white text-sm font-semibold shadow-sm transition-all cursor-pointer"
+        >
+          <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Recommended Plan
+        </button>
+        <button
+          id="btnResetZero"
+          type="button"
+          class="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 active:scale-[0.98] text-slate-700 border border-slate-200 text-sm font-semibold shadow-sm transition-all cursor-pointer"
+        >
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+          </svg>
+          Reset to 0
+        </button>
+      </div>
+    </header>
+
+    <!-- Prominent Daily Totals Summary Section (Sticky on large screens, observed for mobile floating bar) -->
+    <section
+      id="dailyTotalsSection"
+      aria-label="Daily Totals Summary"
+      class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-6 mb-8"
+    >
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+        <div class="flex items-center gap-2">
+          <h2 class="text-base sm:text-lg font-bold text-slate-900">Daily Totals</h2>
+          <span id="activeItemsBadge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+            8 / 8 foods active
+          </span>
+        </div>
+        <p class="text-xs text-slate-500">
+          Click any goal value below to customize your daily targets
+        </p>
+      </div>
+
+      <!-- 4 Live Metric Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-5">
+
+        <!-- Calories Card (Amber / Orange) -->
+        <div class="rounded-2xl bg-amber-50/70 border border-amber-200/70 p-3.5 sm:p-4 flex flex-col justify-between transition-all">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-700">Calories</span>
+            <span id="calPercentBadge" class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">0%</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-1">
+            <span id="totalCalories" class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">0</span>
+            <span class="text-xs sm:text-sm font-semibold text-slate-500">kcal</span>
+          </div>
+          <!-- Customizable Calorie Goal + Progress Bar -->
+          <div class="mt-3">
+            <div class="flex items-center justify-between text-xs text-slate-600 mb-1.5">
+              <label for="calorieGoalInput" class="font-medium">Goal:</label>
+              <div class="flex items-center gap-1">
+                <input
+                  id="calorieGoalInput"
+                  type="number"
+                  min="500"
+                  max="6000"
+                  step="50"
+                  value="2700"
+                  class="w-16 text-right font-bold text-slate-800 bg-white/90 border border-amber-300/80 rounded-lg px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  aria-label="Daily Calorie Goal in kcal"
+                />
+                <span class="text-slate-500 font-medium">kcal</span>
+              </div>
+            </div>
+            <div class="w-full h-2 bg-amber-200/60 rounded-full overflow-hidden">
+              <div id="calorieProgressBar" class="h-full bg-amber-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Protein Card (Emerald / Green) -->
+        <div class="rounded-2xl bg-emerald-50/70 border border-emerald-200/70 p-3.5 sm:p-4 flex flex-col justify-between transition-all">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-700">Protein</span>
+            <span id="proPercentBadge" class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">0%</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-1">
+            <span id="totalProtein" class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">0</span>
+            <span class="text-xs sm:text-sm font-semibold text-slate-500">g</span>
+          </div>
+          <!-- Customizable Protein Goal + Progress Bar -->
+          <div class="mt-3">
+            <div class="flex items-center justify-between text-xs text-slate-600 mb-1.5">
+              <label for="proteinGoalInput" class="font-medium">Goal:</label>
+              <div class="flex items-center gap-1">
+                <input
+                  id="proteinGoalInput"
+                  type="number"
+                  min="20"
+                  max="350"
+                  step="5"
+                  value="120"
+                  class="w-14 text-right font-bold text-slate-800 bg-white/90 border border-emerald-300/80 rounded-lg px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  aria-label="Daily Protein Goal in grams"
+                />
+                <span class="text-slate-500 font-medium">g</span>
+              </div>
+            </div>
+            <div class="w-full h-2 bg-emerald-200/60 rounded-full overflow-hidden">
+              <div id="proteinProgressBar" class="h-full bg-emerald-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Carbs Card (Blue) -->
+        <div class="rounded-2xl bg-blue-50/70 border border-blue-200/70 p-3.5 sm:p-4 flex flex-col justify-between transition-all">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-blue-700">Carbs</span>
+            <span id="carbShareBadge" class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">0% kcal</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-1">
+            <span id="totalCarbs" class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">0</span>
+            <span class="text-xs sm:text-sm font-semibold text-slate-500">g</span>
+          </div>
+          <div class="mt-3">
+            <div class="flex items-center justify-between text-xs text-slate-600 mb-1.5">
+              <span class="font-medium">Energy from carbs</span>
+              <span id="carbsKcalText" class="font-bold text-slate-800">0 kcal</span>
+            </div>
+            <div class="w-full h-2 bg-blue-200/60 rounded-full overflow-hidden">
+              <div id="carbShareBar" class="h-full bg-blue-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fats Card (Rose / Purple) -->
+        <div class="rounded-2xl bg-rose-50/70 border border-rose-200/70 p-3.5 sm:p-4 flex flex-col justify-between transition-all">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-700">Fats</span>
+            <span id="fatShareBadge" class="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">0% kcal</span>
+          </div>
+          <div class="mt-2 flex items-baseline gap-1">
+            <span id="totalFats" class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">0</span>
+            <span class="text-xs sm:text-sm font-semibold text-slate-500">g</span>
+          </div>
+          <div class="mt-3">
+            <div class="flex items-center justify-between text-xs text-slate-600 mb-1.5">
+              <span class="font-medium">Energy from fats</span>
+              <span id="fatsKcalText" class="font-bold text-slate-800">0 kcal</span>
+            </div>
+            <div class="w-full h-2 bg-rose-200/60 rounded-full overflow-hidden">
+              <div id="fatShareBar" class="h-full bg-rose-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Visual Macro-Split Bar (% of Calories from Protein, Carbs, Fats) -->
+      <div class="pt-4 border-t border-slate-100">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Macro Calorie Split</span>
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-slate-700">
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              Protein: <strong id="splitProteinPct">0%</strong>
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+              Carbs: <strong id="splitCarbsPct">0%</strong>
+            </span>
+            <span class="inline-flex items-center gap-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+              Fats: <strong id="splitFatsPct">0%</strong>
+            </span>
+          </div>
+        </div>
+
+        <!-- Stacked Bar -->
+        <div class="w-full h-3.5 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+          <div id="barProtein" class="h-full bg-emerald-500 transition-all duration-300" style="width: 0%" title="Protein %"></div>
+          <div id="barCarbs" class="h-full bg-blue-500 transition-all duration-300" style="width: 0%" title="Carbs %"></div>
+          <div id="barFats" class="h-full bg-rose-500 transition-all duration-300" style="width: 0%" title="Fats %"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Food Items Section Header -->
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold text-slate-900">Your 8 Daily Foods</h2>
+      <span class="text-xs font-medium text-slate-500">Use sliders or +/- buttons to adjust portions</span>
+    </div>
+
+    <!-- Responsive Grid of 8 Food Cards -->
+    <main
+      id="foodGrid"
+      class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-4"
+      aria-label="Food Portion Controls"
+    >
+      <!-- Cards are dynamically rendered by JavaScript -->
+    </main>
+
+    <!-- Footer Note -->
+    <footer class="mt-10 text-center text-xs text-slate-400">
+      Nutritional values are standard estimates per household serving. Cooking oils or extra tadka are not separately added.
+    </footer>
+
+  </div>
+
+  <!-- Application Script -->
+  <script>
+    (function () {
+      'use strict';
+
+      /**
+       * Master configuration of the 8 food items.
+       * Contains exact unit labels, min/max bounds, step sizes, default lean-bulk portions,
+       * and per-unit macro values.
+       */
+      const FOOD_ITEMS = [
+        {
+          id: 'eggs',
+          name: 'Whole Eggs',
+          emoji: '🥚',
+          unit: '1 egg',
+          unitPlural: 'eggs',
+          min: 0,
+          max: 12,
+          step: 1,
+          defaultQty: 6,
+          kcal: 75,
+          protein: 6,
+          carbs: 0.5,
+          fat: 5,
+        },
+        {
+          id: 'rotis',
+          name: 'Rotis',
+          emoji: '🫓',
+          unit: '1 medium roti',
+          unitPlural: 'rotis',
+          min: 0,
+          max: 15,
+          step: 1,
+          defaultQty: 7,
+          kcal: 110,
+          protein: 3.5,
+          carbs: 22,
+          fat: 0.5,
+        },
+        {
+          id: 'chawal',
+          name: 'Chawal / Cooked Rice',
+          emoji: '🍚',
+          unit: '1 katori',
+          unitPlural: 'katoris',
+          min: 0,
+          max: 6,
+          step: 0.5,
+          defaultQty: 1.5,
+          kcal: 195,
+          protein: 4,
+          carbs: 42,
+          fat: 0.4,
+        },
+        {
+          id: 'daal',
+          name: 'Daal / Cooked Lentils',
+          emoji: '🥣',
+          unit: '1 katori',
+          unitPlural: 'katoris',
+          min: 0,
+          max: 6,
+          step: 0.5,
+          defaultQty: 3,
+          kcal: 150,
+          protein: 7,
+          carbs: 20,
+          fat: 3.5,
+        },
+        {
+          id: 'milk',
+          name: 'Full-Cream Milk',
+          emoji: '🥛',
+          unit: '250 ml glass',
+          unitPlural: 'glasses',
+          min: 0,
+          max: 6,
+          step: 0.5,
+          defaultQty: 1,
+          kcal: 155,
+          protein: 8,
+          carbs: 12,
+          fat: 8,
+        },
+        {
+          id: 'banana',
+          name: 'Banana',
+          emoji: '🍌',
+          unit: '1 medium',
+          unitPlural: 'bananas',
+          min: 0,
+          max: 8,
+          step: 1,
+          defaultQty: 3,
+          kcal: 105,
+          protein: 1.3,
+          carbs: 27,
+          fat: 0.3,
+        },
+        {
+          id: 'chickpeas',
+          name: 'Roasted Chickpeas',
+          subtitle: 'Bhuna Chana',
+          emoji: '🫘',
+          unit: '50g serving',
+          unitPlural: 'servings (50g)',
+          min: 0,
+          max: 4,
+          step: 0.5,
+          defaultQty: 1,
+          kcal: 180,
+          protein: 10,
+          carbs: 30,
+          fat: 2.5,
+        },
+        {
+          id: 'whey',
+          name: 'Whey Protein',
+          emoji: '🥤',
+          unit: '1 scoop / 30g',
+          unitPlural: 'scoops',
+          min: 0,
+          max: 3,
+          step: 0.5,
+          defaultQty: 1,
+          kcal: 120,
+          protein: 24,
+          carbs: 3,
+          fat: 1.5,
+        },
+      ];
+
+      // Application State
+      const state = {
+        quantities: {},
+        calorieGoal: 2700,
+        proteinGoal: 120,
+      };
+
+      // Cache DOM elements
+      const dom = {
+        foodGrid: document.getElementById('foodGrid'),
+        totalCalories: document.getElementById('totalCalories'),
+        totalProtein: document.getElementById('totalProtein'),
+        totalCarbs: document.getElementById('totalCarbs'),
+        totalFats: document.getElementById('totalFats'),
+        calorieGoalInput: document.getElementById('calorieGoalInput'),
+        proteinGoalInput: document.getElementById('proteinGoalInput'),
+        calPercentBadge: document.getElementById('calPercentBadge'),
+        proPercentBadge: document.getElementById('proPercentBadge'),
+        carbShareBadge: document.getElementById('carbShareBadge'),
+        fatShareBadge: document.getElementById('fatShareBadge'),
+        calorieProgressBar: document.getElementById('calorieProgressBar'),
+        proteinProgressBar: document.getElementById('proteinProgressBar'),
+        carbShareBar: document.getElementById('carbShareBar'),
+        fatShareBar: document.getElementById('fatShareBar'),
+        carbsKcalText: document.getElementById('carbsKcalText'),
+        fatsKcalText: document.getElementById('fatsKcalText'),
+        splitProteinPct: document.getElementById('splitProteinPct'),
+        splitCarbsPct: document.getElementById('splitCarbsPct'),
+        splitFatsPct: document.getElementById('splitFatsPct'),
+        barProtein: document.getElementById('barProtein'),
+        barCarbs: document.getElementById('barCarbs'),
+        barFats: document.getElementById('barFats'),
+        activeItemsBadge: document.getElementById('activeItemsBadge'),
+        btnRecommended: document.getElementById('btnRecommended'),
+        btnResetZero: document.getElementById('btnResetZero'),
+        floatingSummaryBar: document.getElementById('floatingSummaryBar'),
+        dailyTotalsSection: document.getElementById('dailyTotalsSection'),
+        floatCalories: document.getElementById('floatCalories'),
+        floatProtein: document.getElementById('floatProtein'),
+        floatCarbs: document.getElementById('floatCarbs'),
+        floatFats: document.getElementById('floatFats'),
+        toastMessage: document.getElementById('toastMessage'),
+      };
+
+      let toastTimer = null;
+
+      /**
+       * Helper to safely round numbers without floating-point artifacts.
+       */
+      function roundTo(value, decimals = 1) {
+        const factor = Math.pow(10, decimals);
+        return Math.round((value + Number.EPSILON) * factor) / factor;
+      }
+
+      /**
+       * Formats quantity cleanly (e.g. 1.5 -> "1.5", 2.0 -> "2").
+       */
+      function formatQty(qty) {
+        return Number.isInteger(qty) ? String(qty) : qty.toFixed(1);
+      }
+
+      /**
+       * Shows a brief non-blocking toast notification.
+       */
+      function showToast(message) {
+        try {
+          if (!dom.toastMessage) return;
+          dom.toastMessage.textContent = message;
+          dom.toastMessage.classList.remove('opacity-0', 'translate-y-2', 'pointer-events-none');
+          dom.toastMessage.classList.add('opacity-100', 'translate-y-0');
+
+          clearTimeout(toastTimer);
+          toastTimer = setTimeout(() => {
+            dom.toastMessage.classList.add('opacity-0', 'translate-y-2', 'pointer-events-none');
+            dom.toastMessage.classList.remove('opacity-100', 'translate-y-0');
+          }, 2200);
+        } catch (err) {
+          console.error('Toast error:', err);
+        }
+      }
+
+      /**
+       * Initializes state with default recommended lean-bulk portions.
+       */
+      function initDefaultState() {
+        FOOD_ITEMS.forEach((item) => {
+          state.quantities[item.id] = item.defaultQty;
+        });
+      }
+
+      /**
+       * Builds and injects all 8 food cards into the responsive grid.
+       */
+      function renderFoodCards() {
+        dom.foodGrid.innerHTML = '';
+
+        FOOD_ITEMS.forEach((item) => {
+          const card = document.createElement('article');
+          card.id = `card-${item.id}`;
+          card.className =
+            'bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-slate-300 transition-all duration-200 p-4 sm:p-5 flex flex-col justify-between';
+
+          const subtitleHtml = item.subtitle
+            ? `<span class="text-xs font-medium text-slate-400 block">${item.subtitle}</span>`
+            : '';
+
+          card.innerHTML = `
+            <!-- Card Top: Icon, Name, Unit -->
+            <div class="flex items-start justify-between gap-3 mb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center text-2xl shrink-0 select-none">
+                  ${item.emoji}
+                </div>
+                <div>
+                  <h3 class="text-sm sm:text-base font-bold text-slate-900 leading-tight">${item.name}</h3>
+                  ${subtitleHtml}
+                  <p class="text-xs text-slate-500 mt-0.5">Per ${item.unit}: ${item.kcal} kcal · ${item.protein}g P</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Interactive Portion Controls -->
+            <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 mb-4">
+              <div class="flex items-center justify-between gap-2 mb-3">
+                <button
+                  type="button"
+                  data-action="decrement"
+                  data-id="${item.id}"
+                  aria-label="Decrease ${item.name}"
+                  class="w-10 h-10 rounded-xl bg-white border border-slate-200 hover:bg-slate-100 active:scale-95 text-slate-700 font-bold text-lg flex items-center justify-center shadow-xs transition-all cursor-pointer select-none"
+                >−</button>
+
+                <div class="text-center">
+                  <div class="flex items-baseline justify-center gap-1">
+                    <span id="qty-${item.id}" class="text-xl font-extrabold text-slate-900">0</span>
+                    <span class="text-xs font-medium text-slate-500">${item.unitPlural}</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  data-action="increment"
+                  data-id="${item.id}"
+                  aria-label="Increase ${item.name}"
+                  class="w-10 h-10 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-bold text-lg flex items-center justify-center shadow-xs transition-all cursor-pointer select-none"
+                >+</button>
+              </div>
+
+              <!-- Range Slider -->
+              <div class="px-1">
+                <input
+                  id="slider-${item.id}"
+                  type="range"
+                  class="food-slider w-full"
+                  min="${item.min}"
+                  max="${item.max}"
+                  step="${item.step}"
+                  value="${state.quantities[item.id]}"
+                  data-id="${item.id}"
+                  aria-label="${item.name} quantity slider"
+                />
+                <div class="flex justify-between text-[10px] font-medium text-slate-400 mt-1">
+                  <span>${item.min}</span>
+                  <span>${item.max}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Live Per-Item Subtotal -->
+            <div class="grid grid-cols-4 gap-1.5 text-center pt-2 border-t border-slate-100">
+              <div class="rounded-lg bg-amber-50/80 py-1.5 px-1">
+                <div class="text-[10px] font-semibold text-amber-700 uppercase">Kcal</div>
+                <div id="sub-kcal-${item.id}" class="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">0</div>
+              </div>
+              <div class="rounded-lg bg-emerald-50/80 py-1.5 px-1">
+                <div class="text-[10px] font-semibold text-emerald-700 uppercase">Pro</div>
+                <div id="sub-pro-${item.id}" class="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">0g</div>
+              </div>
+              <div class="rounded-lg bg-blue-50/80 py-1.5 px-1">
+                <div class="text-[10px] font-semibold text-blue-700 uppercase">Carb</div>
+                <div id="sub-carb-${item.id}" class="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">0g</div>
+              </div>
+              <div class="rounded-lg bg-rose-50/80 py-1.5 px-1">
+                <div class="text-[10px] font-semibold text-rose-700 uppercase">Fat</div>
+                <div id="sub-fat-${item.id}" class="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">0g</div>
+              </div>
+            </div>
+          `;
+
+          dom.foodGrid.appendChild(card);
+        });
+      }
+
+      /**
+       * Updates a single food card's UI elements (quantity, slider fill, subtotals, active styling).
+       */
+      function updateFoodCardUI(item) {
+        const qty = state.quantities[item.id];
+        const card = document.getElementById(`card-${item.id}`);
+        const qtyEl = document.getElementById(`qty-${item.id}`);
+        const sliderEl = document.getElementById(`slider-${item.id}`);
+        const kcalEl = document.getElementById(`sub-kcal-${item.id}`);
+        const proEl = document.getElementById(`sub-pro-${item.id}`);
+        const carbEl = document.getElementById(`sub-carb-${item.id}`);
+        const fatEl = document.getElementById(`sub-fat-${item.id}`);
+
+        if (!card || !qtyEl || !sliderEl) return;
+
+        qtyEl.textContent = formatQty(qty);
+        sliderEl.value = qty;
+
+        // Visual fill for range slider track
+        const pct = ((qty - item.min) / (item.max - item.min)) * 100;
+        sliderEl.style.background = `linear-gradient(to right, #10b981 0%, #10b981 ${pct}%, #e2e8f0 ${pct}%, #e2e8f0 100%)`;
+
+        // Calculate per-item subtotals
+        const subKcal = Math.round(item.kcal * qty);
+        const subPro = roundTo(item.protein * qty, 1);
+        const subCarb = roundTo(item.carbs * qty, 1);
+        const subFat = roundTo(item.fat * qty, 1);
+
+        kcalEl.textContent = subKcal;
+        proEl.textContent = `${subPro}g`;
+        carbEl.textContent = `${subCarb}g`;
+        fatEl.textContent = `${subFat}g`;
+
+        // Subtle visual dimming when a food item is set to 0
+        if (qty === 0) {
+          card.classList.add('opacity-75', 'bg-slate-50/70');
+          card.classList.remove('bg-white');
+        } else {
+          card.classList.remove('opacity-75', 'bg-slate-50/70');
+          card.classList.add('bg-white');
+        }
+      }
+
+      /**
+       * Recalculates all daily totals, goal percentages, macro calorie split,
+       * and updates both the main summary section and floating sticky bar.
+       */
+      function recalculateTotals() {
+        try {
+          let totalKcal = 0;
+          let totalPro = 0;
+          let totalCarbs = 0;
+          let totalFats = 0;
+          let activeCount = 0;
+
+          FOOD_ITEMS.forEach((item) => {
+            const qty = state.quantities[item.id] || 0;
+            if (qty > 0) activeCount += 1;
+
+            totalKcal += item.kcal * qty;
+            totalPro += item.protein * qty;
+            totalCarbs += item.carbs * qty;
+            totalFats += item.fat * qty;
+          });
+
+          const roundedKcal = Math.round(totalKcal);
+          const roundedPro = roundTo(totalPro, 1);
+          const roundedCarbs = roundTo(totalCarbs, 1);
+          const roundedFats = roundTo(totalFats, 1);
+
+          // Update Primary Metric Cards
+          dom.totalCalories.textContent = roundedKcal.toLocaleString();
+          dom.totalProtein.textContent = roundedPro;
+          dom.totalCarbs.textContent = roundedCarbs;
+          dom.totalFats.textContent = roundedFats;
+
+          // Update Floating Bar
+          dom.floatCalories.textContent = roundedKcal.toLocaleString();
+          dom.floatProtein.textContent = `${roundedPro}g`;
+          dom.floatCarbs.textContent = `${roundedCarbs}g`;
+          dom.floatFats.textContent = `${roundedFats}g`;
+
+          // Active foods badge
+          dom.activeItemsBadge.textContent = `${activeCount} / ${FOOD_ITEMS.length} foods active`;
+
+          // Calorie Goal Progress
+          const calGoal = Math.max(1, state.calorieGoal);
+          const calPct = Math.round((roundedKcal / calGoal) * 100);
+          dom.calPercentBadge.textContent = `${calPct}%`;
+          dom.calorieProgressBar.style.width = `${Math.min(calPct, 100)}%`;
+
+          // Protein Goal Progress
+          const proGoal = Math.max(1, state.proteinGoal);
+          const proPct = Math.round((roundedPro / proGoal) * 100);
+          dom.proPercentBadge.textContent = `${proPct}%`;
+          dom.proteinProgressBar.style.width = `${Math.min(proPct, 100)}%`;
+
+          // Macro Calorie Breakdown (Protein = 4 kcal/g, Carbs = 4 kcal/g, Fats = 9 kcal/g)
+          const proKcal = roundedPro * 4;
+          const carbKcal = roundedCarbs * 4;
+          const fatKcal = roundedFats * 9;
+          const macroKcalSum = proKcal + carbKcal + fatKcal;
+
+          let splitPro = 0;
+          let splitCarb = 0;
+          let splitFat = 0;
+
+          if (macroKcalSum > 0) {
+            splitPro = Math.round((proKcal / macroKcalSum) * 100);
+            splitCarb = Math.round((carbKcal / macroKcalSum) * 100);
+            splitFat = Math.max(0, 100 - splitPro - splitCarb);
+          }
+
+          // Update Carbs & Fats Energy Cards
+          dom.carbsKcalText.textContent = `${Math.round(carbKcal).toLocaleString()} kcal`;
+          dom.fatsKcalText.textContent = `${Math.round(fatKcal).toLocaleString()} kcal`;
+          dom.carbShareBadge.textContent = `${splitCarb}% kcal`;
+          dom.fatShareBadge.textContent = `${splitFat}% kcal`;
+          dom.carbShareBar.style.width = `${splitCarb}%`;
+          dom.fatShareBar.style.width = `${splitFat}%`;
+
+          // Update Macro Split Bar
+          dom.splitProteinPct.textContent = `${splitPro}%`;
+          dom.splitCarbsPct.textContent = `${splitCarb}%`;
+          dom.splitFatsPct.textContent = `${splitFat}%`;
+          dom.barProtein.style.width = `${splitPro}%`;
+          dom.barCarbs.style.width = `${splitCarb}%`;
+          dom.barFats.style.width = `${splitFat}%`;
+        } catch (err) {
+          console.error('Error recalculating totals:', err);
+        }
+      }
+
+      /**
+       * Sets a food item's quantity, clamping to valid min/max bounds and step precision.
+       */
+      function setItemQuantity(id, newQty) {
+        const item = FOOD_ITEMS.find((f) => f.id === id);
+        if (!item) return;
+
+        const clamped = Math.min(item.max, Math.max(item.min, roundTo(newQty, 1)));
+        state.quantities[id] = clamped;
+
+        updateFoodCardUI(item);
+        recalculateTotals();
+      }
+
+      /**
+       * Refreshes all 8 cards and totals at once.
+       */
+      function updateAllUI() {
+        FOOD_ITEMS.forEach(updateFoodCardUI);
+        recalculateTotals();
+      }
+
+      /**
+       * Attaches all event listeners using event delegation for clean, fast interactions.
+       */
+      function bindEvents() {
+        // Delegate +/- button clicks on the food grid
+        dom.foodGrid.addEventListener('click', (e) => {
+          const btn = e.target.closest('button[data-action]');
+          if (!btn) return;
+
+          const id = btn.dataset.id;
+          const action = btn.dataset.action;
+          const item = FOOD_ITEMS.find((f) => f.id === id);
+          if (!item) return;
+
+          const current = state.quantities[id] || 0;
+          const next = action === 'increment' ? current + item.step : current - item.step;
+          setItemQuantity(id, next);
+        });
+
+        // Delegate slider input events for smooth real-time updates
+        dom.foodGrid.addEventListener('input', (e) => {
+          if (e.target.matches('input[type="range"].food-slider')) {
+            const id = e.target.dataset.id;
+            const val = parseFloat(e.target.value);
+            if (!Number.isNaN(val)) {
+              setItemQuantity(id, val);
+            }
+          }
+        });
+
+        // Inline editable Calorie Goal
+        dom.calorieGoalInput.addEventListener('input', (e) => {
+          const val = parseInt(e.target.value, 10);
+          if (!Number.isNaN(val) && val > 0) {
+            state.calorieGoal = val;
+            recalculateTotals();
+          }
+        });
+
+        dom.calorieGoalInput.addEventListener('blur', (e) => {
+          const val = parseInt(e.target.value, 10);
+          if (Number.isNaN(val) || val < 500) {
+            state.calorieGoal = 2700;
+            e.target.value = 2700;
+            recalculateTotals();
+          }
+        });
+
+        // Inline editable Protein Goal
+        dom.proteinGoalInput.addEventListener('input', (e) => {
+          const val = parseInt(e.target.value, 10);
+          if (!Number.isNaN(val) && val > 0) {
+            state.proteinGoal = val;
+            recalculateTotals();
+          }
+        });
+
+        dom.proteinGoalInput.addEventListener('blur', (e) => {
+          const val = parseInt(e.target.value, 10);
+          if (Number.isNaN(val) || val < 20) {
+            state.proteinGoal = 120;
+            e.target.value = 120;
+            recalculateTotals();
+          }
+        });
+
+        // Quick Action: Recommended Plan
+        dom.btnRecommended.addEventListener('click', () => {
+          initDefaultState();
+          updateAllUI();
+          showToast('Loaded Recommended Lean Bulk Plan');
+        });
+
+        // Quick Action: Reset to 0
+        dom.btnResetZero.addEventListener('click', () => {
+          FOOD_ITEMS.forEach((item) => {
+            state.quantities[item.id] = 0;
+          });
+          updateAllUI();
+          showToast('All food portions cleared to 0');
+        });
+
+        // IntersectionObserver to show/hide compact sticky bar when scrolling past Daily Totals
+        if ('IntersectionObserver' in window && dom.dailyTotalsSection && dom.floatingSummaryBar) {
+          const observer = new IntersectionObserver(
+            (entries) => {
+              const entry = entries[0];
+              if (!entry.isIntersecting) {
+                dom.floatingSummaryBar.classList.remove('-translate-y-full');
+                dom.floatingSummaryBar.setAttribute('aria-hidden', 'false');
+              } else {
+                dom.floatingSummaryBar.classList.add('-translate-y-full');
+                dom.floatingSummaryBar.setAttribute('aria-hidden', 'true');
+              }
+            },
+            { threshold: 0.05 }
+          );
+          observer.observe(dom.dailyTotalsSection);
+        }
+      }
+
+      // Bootstrap App
+      function init() {
+        try {
+          initDefaultState();
+          renderFoodCards();
+          bindEvents();
+          updateAllUI();
+        } catch (err) {
+          console.error('Initialization failed:', err);
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', init);
+    })();
+  </script>
+</body>
+</html>
