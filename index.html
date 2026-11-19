@@ -10,6 +10,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 
+  <!-- Firebase SDK (compat bundles for single-file usage) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics-compat.js"></script>
+
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -85,10 +91,75 @@
     input[type='number'] {
       -moz-appearance: textfield;
     }
+
+    /* Weekly Analytics Toggle Animation */
+    .analytics-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+      opacity: 0;
+    }
+    .analytics-panel.open {
+      max-height: 2000px;
+      opacity: 1;
+    }
+
+    /* Chevron rotation */
+    .chevron-icon {
+      transition: transform 0.25s ease;
+    }
+    .chevron-icon.rotated {
+      transform: rotate(180deg);
+    }
+
+    /* Auth avatar */
+    .auth-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 9999px;
+      border: 2px solid #e2e8f0;
+      object-fit: cover;
+    }
+
+    /* Pulse animation for save button */
+    @keyframes subtlePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0.3); }
+      50% { box-shadow: 0 0 0 6px rgba(16,185,129,0); }
+    }
+    .save-pulse {
+      animation: subtlePulse 2s ease-in-out infinite;
+    }
   </style>
 </head>
 
 <body class="bg-slate-50 text-slate-900 min-h-screen antialiased selection:bg-emerald-100 selection:text-emerald-900">
+
+  <!-- Auth Bar -->
+  <div id="authBar" class="bg-white border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between">
+      <div id="authStatus" class="flex items-center gap-2 text-sm text-slate-500">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+        <span>Not signed in</span>
+      </div>
+      <div id="authActions">
+        <button
+          id="btnGoogleSignIn"
+          type="button"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 active:scale-[0.98] text-slate-700 border border-slate-200 text-sm font-semibold shadow-sm transition-all cursor-pointer"
+        >
+          <svg class="w-4 h-4" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Sign in with Google
+        </button>
+        <button
+          id="btnSignOut"
+          type="button"
+          class="hidden inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-[0.98] text-slate-600 text-sm font-semibold transition-all cursor-pointer"
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Compact Floating Sticky Bar (Appears when scrolling past the main summary section) -->
   <div
@@ -351,6 +422,111 @@
       <!-- Cards are dynamically rendered by JavaScript -->
     </main>
 
+    <!-- Save Today's Log Button (visible only when signed in) -->
+    <div id="saveLogSection" class="hidden mt-6 flex justify-center">
+      <button
+        id="btnSaveLog"
+        type="button"
+        class="save-pulse inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.97] text-white text-sm font-bold shadow-lg transition-all cursor-pointer"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
+        Save Today's Log
+      </button>
+      <span id="lastSavedText" class="hidden ml-3 self-center text-xs text-slate-400"></span>
+    </div>
+
+    <!-- Weekly Analytics Section (visible only when signed in) -->
+    <section id="weeklyAnalyticsSection" class="hidden mt-8">
+      <!-- Toggle Header -->
+      <button
+        id="btnToggleAnalytics"
+        type="button"
+        class="w-full flex items-center justify-between bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-5 hover:shadow-md transition-all cursor-pointer"
+      >
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center text-xl">📊</div>
+          <div class="text-left">
+            <h2 class="text-base sm:text-lg font-bold text-slate-900">Weekly Analytics</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Your last 7 days of logged nutrition data</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="analyticsLogCount" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700">0 logs</span>
+          <svg id="analyticsChevron" class="chevron-icon w-5 h-5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+        </div>
+      </button>
+
+      <!-- Collapsible Panel -->
+      <div id="analyticsPanel" class="analytics-panel mt-3">
+        <!-- Week Summary Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+          <!-- Total Calories This Week -->
+          <div class="rounded-2xl bg-amber-50/70 border border-amber-200/70 p-3.5 sm:p-4">
+            <span class="text-xs font-bold uppercase tracking-wider text-amber-700">Week Calories</span>
+            <div class="mt-1.5 flex items-baseline gap-1">
+              <span id="weekTotalCal" class="text-xl sm:text-2xl font-extrabold text-slate-900">0</span>
+              <span class="text-xs font-semibold text-slate-500">kcal</span>
+            </div>
+            <div class="text-xs text-slate-500 mt-1">Avg: <strong id="weekAvgCal" class="text-slate-700">0</strong> kcal/day</div>
+          </div>
+          <!-- Total Protein This Week -->
+          <div class="rounded-2xl bg-emerald-50/70 border border-emerald-200/70 p-3.5 sm:p-4">
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-700">Week Protein</span>
+            <div class="mt-1.5 flex items-baseline gap-1">
+              <span id="weekTotalPro" class="text-xl sm:text-2xl font-extrabold text-slate-900">0</span>
+              <span class="text-xs font-semibold text-slate-500">g</span>
+            </div>
+            <div class="text-xs text-slate-500 mt-1">Avg: <strong id="weekAvgPro" class="text-slate-700">0</strong> g/day</div>
+          </div>
+          <!-- Calorie Goal Hit Rate -->
+          <div class="rounded-2xl bg-blue-50/70 border border-blue-200/70 p-3.5 sm:p-4">
+            <span class="text-xs font-bold uppercase tracking-wider text-blue-700">Cal Goal Hit</span>
+            <div class="mt-1.5 flex items-baseline gap-1">
+              <span id="weekCalHitRate" class="text-xl sm:text-2xl font-extrabold text-slate-900">0</span>
+              <span class="text-xs font-semibold text-slate-500">%</span>
+            </div>
+            <div class="text-xs text-slate-500 mt-1">Days within ±10% of goal</div>
+          </div>
+          <!-- Protein Goal Hit Rate -->
+          <div class="rounded-2xl bg-rose-50/70 border border-rose-200/70 p-3.5 sm:p-4">
+            <span class="text-xs font-bold uppercase tracking-wider text-rose-700">Pro Goal Hit</span>
+            <div class="mt-1.5 flex items-baseline gap-1">
+              <span id="weekProHitRate" class="text-xl sm:text-2xl font-extrabold text-slate-900">0</span>
+              <span class="text-xs font-semibold text-slate-500">%</span>
+            </div>
+            <div class="text-xs text-slate-500 mt-1">Days meeting protein target</div>
+          </div>
+        </div>
+
+        <!-- Daily Breakdown Table -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+          <div class="px-4 sm:px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="text-sm font-bold text-slate-700">Daily Breakdown (Last 7 Days)</h3>
+            <span class="text-[10px] font-medium text-slate-400 uppercase tracking-wider">Auto-deletes after 7 days</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-500">
+                  <th class="text-left px-4 py-2.5">Date</th>
+                  <th class="text-right px-4 py-2.5">Calories</th>
+                  <th class="text-right px-4 py-2.5">Protein</th>
+                  <th class="text-right px-4 py-2.5">Carbs</th>
+                  <th class="text-right px-4 py-2.5">Fats</th>
+                  <th class="text-right px-4 py-2.5">Cal Goal</th>
+                  <th class="text-right px-4 py-2.5">Pro Goal</th>
+                  <th class="text-center px-4 py-2.5">Status</th>
+                </tr>
+              </thead>
+              <tbody id="weeklyTableBody" class="divide-y divide-slate-100">
+                <tr><td colspan="8" class="px-4 py-6 text-center text-slate-400 text-sm">No logs yet. Save your first daily log!</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Footer Note -->
     <footer class="mt-10 text-center text-xs text-slate-400">
       Nutritional values are standard estimates per household serving. Cooking oils or extra tadka are not separately added.
@@ -363,10 +539,29 @@
     (function () {
       'use strict';
 
+      /* ========================================================
+         FIREBASE INITIALIZATION
+      ======================================================== */
+      const firebaseConfig = {
+        apiKey: "AIzaSyAogcBRJLCfcAtLaFZXy6FspO1KPS--fgc",
+        authDomain: "diet-planner-124a6.firebaseapp.com",
+        projectId: "diet-planner-124a6",
+        storageBucket: "diet-planner-124a6.firebasestorage.app",
+        messagingSenderId: "174821078898",
+        appId: "1:174821078898:web:756ff80ab0baf37c07cfeb",
+        measurementId: "G-TZ53E2VN5Y"
+      };
+
+      const fbApp = firebase.initializeApp(firebaseConfig);
+      const auth = firebase.auth();
+      const db = firebase.firestore();
+      const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+      // Try to init analytics (fails silently if blocked)
+      try { firebase.analytics(); } catch (e) {}
+
       /**
        * Master configuration of the 8 food items.
-       * Contains exact unit labels, min/max bounds, step sizes, default lean-bulk portions,
-       * and per-unit macro values.
        */
       const FOOD_ITEMS = [
         {
@@ -497,6 +692,7 @@
         quantities: {},
         calorieGoal: 2700,
         proteinGoal: 120,
+        currentUser: null,
       };
 
       // Cache DOM elements
@@ -534,35 +730,79 @@
         floatCarbs: document.getElementById('floatCarbs'),
         floatFats: document.getElementById('floatFats'),
         toastMessage: document.getElementById('toastMessage'),
+        // Auth elements
+        authStatus: document.getElementById('authStatus'),
+        btnGoogleSignIn: document.getElementById('btnGoogleSignIn'),
+        btnSignOut: document.getElementById('btnSignOut'),
+        // Data logging elements
+        saveLogSection: document.getElementById('saveLogSection'),
+        btnSaveLog: document.getElementById('btnSaveLog'),
+        lastSavedText: document.getElementById('lastSavedText'),
+        // Weekly analytics elements
+        weeklyAnalyticsSection: document.getElementById('weeklyAnalyticsSection'),
+        btnToggleAnalytics: document.getElementById('btnToggleAnalytics'),
+        analyticsPanel: document.getElementById('analyticsPanel'),
+        analyticsChevron: document.getElementById('analyticsChevron'),
+        analyticsLogCount: document.getElementById('analyticsLogCount'),
+        weekTotalCal: document.getElementById('weekTotalCal'),
+        weekTotalPro: document.getElementById('weekTotalPro'),
+        weekAvgCal: document.getElementById('weekAvgCal'),
+        weekAvgPro: document.getElementById('weekAvgPro'),
+        weekCalHitRate: document.getElementById('weekCalHitRate'),
+        weekProHitRate: document.getElementById('weekProHitRate'),
+        weeklyTableBody: document.getElementById('weeklyTableBody'),
       };
 
       let toastTimer = null;
 
-      /**
-       * Helper to safely round numbers without floating-point artifacts.
-       */
+      /* ========================================================
+         UTILITY HELPERS
+      ======================================================== */
       function roundTo(value, decimals = 1) {
         const factor = Math.pow(10, decimals);
         return Math.round((value + Number.EPSILON) * factor) / factor;
       }
 
-      /**
-       * Formats quantity cleanly (e.g. 1.5 -> "1.5", 2.0 -> "2").
-       */
       function formatQty(qty) {
         return Number.isInteger(qty) ? String(qty) : qty.toFixed(1);
       }
 
-      /**
-       * Shows a brief non-blocking toast notification.
-       */
+      /** Returns today's date as YYYY-MM-DD in local timezone */
+      function getTodayDateStr() {
+        const d = new Date();
+        return d.getFullYear() + '-' +
+          String(d.getMonth() + 1).padStart(2, '0') + '-' +
+          String(d.getDate()).padStart(2, '0');
+      }
+
+      /** Returns date string for N days ago */
+      function getDateStrDaysAgo(n) {
+        const d = new Date();
+        d.setDate(d.getDate() - n);
+        return d.getFullYear() + '-' +
+          String(d.getMonth() + 1).padStart(2, '0') + '-' +
+          String(d.getDate()).padStart(2, '0');
+      }
+
+      /** Formats YYYY-MM-DD to a friendly display like "Mon, Nov 18" */
+      function formatDateDisplay(dateStr) {
+        const d = new Date(dateStr + 'T12:00:00');
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const today = getTodayDateStr();
+        const yesterday = getDateStrDaysAgo(1);
+        let label = `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+        if (dateStr === today) label += ' (Today)';
+        else if (dateStr === yesterday) label += ' (Yesterday)';
+        return label;
+      }
+
       function showToast(message) {
         try {
           if (!dom.toastMessage) return;
           dom.toastMessage.textContent = message;
           dom.toastMessage.classList.remove('opacity-0', 'translate-y-2', 'pointer-events-none');
           dom.toastMessage.classList.add('opacity-100', 'translate-y-0');
-
           clearTimeout(toastTimer);
           toastTimer = setTimeout(() => {
             dom.toastMessage.classList.add('opacity-0', 'translate-y-2', 'pointer-events-none');
@@ -573,18 +813,239 @@
         }
       }
 
-      /**
-       * Initializes state with default recommended lean-bulk portions.
-       */
+      /* ========================================================
+         FIREBASE AUTH
+      ======================================================== */
+      function handleAuthStateChange(user) {
+        state.currentUser = user;
+        if (user) {
+          // Signed in
+          const photoHtml = user.photoURL
+            ? `<img src="${user.photoURL}" alt="avatar" class="auth-avatar" referrerpolicy="no-referrer" />`
+            : `<div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm">${(user.displayName || user.email || '?')[0].toUpperCase()}</div>`;
+          dom.authStatus.innerHTML = `
+            ${photoHtml}
+            <span class="text-sm font-semibold text-slate-700">${user.displayName || user.email}</span>
+          `;
+          dom.btnGoogleSignIn.classList.add('hidden');
+          dom.btnSignOut.classList.remove('hidden');
+          dom.saveLogSection.classList.remove('hidden');
+          dom.weeklyAnalyticsSection.classList.remove('hidden');
+
+          // Load weekly data
+          loadWeeklyData();
+        } else {
+          // Signed out
+          dom.authStatus.innerHTML = `
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+            <span>Not signed in</span>
+          `;
+          dom.btnGoogleSignIn.classList.remove('hidden');
+          dom.btnSignOut.classList.add('hidden');
+          dom.saveLogSection.classList.add('hidden');
+          dom.weeklyAnalyticsSection.classList.add('hidden');
+        }
+      }
+
+      auth.onAuthStateChanged(handleAuthStateChange);
+
+      /* ========================================================
+         FIRESTORE DATA LOGGING
+      ======================================================== */
+
+      /** Returns the Firestore collection path for a user's daily logs */
+      function userLogsCollection() {
+        return db.collection('users').doc(state.currentUser.uid).collection('dailyLogs');
+      }
+
+      /** Saves current day's totals to Firestore, then cleans up old data */
+      async function saveTodayLog() {
+        if (!state.currentUser) {
+          showToast('Please sign in first');
+          return;
+        }
+
+        const dateStr = getTodayDateStr();
+        let totalKcal = 0, totalPro = 0, totalCarbs = 0, totalFats = 0;
+        const portions = {};
+
+        FOOD_ITEMS.forEach((item) => {
+          const qty = state.quantities[item.id] || 0;
+          portions[item.id] = qty;
+          totalKcal += item.kcal * qty;
+          totalPro += item.protein * qty;
+          totalCarbs += item.carbs * qty;
+          totalFats += item.fat * qty;
+        });
+
+        const logData = {
+          date: dateStr,
+          calories: Math.round(totalKcal),
+          protein: roundTo(totalPro, 1),
+          carbs: roundTo(totalCarbs, 1),
+          fats: roundTo(totalFats, 1),
+          calorieGoal: state.calorieGoal,
+          proteinGoal: state.proteinGoal,
+          portions: portions,
+          savedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        };
+
+        try {
+          dom.btnSaveLog.disabled = true;
+          dom.btnSaveLog.textContent = 'Saving...';
+
+          // Use date as document ID so re-saving overwrites today's entry
+          await userLogsCollection().doc(dateStr).set(logData);
+
+          // Show success
+          const now = new Date();
+          const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          dom.lastSavedText.textContent = `Last saved at ${timeStr}`;
+          dom.lastSavedText.classList.remove('hidden');
+          showToast(`✅ Log saved for ${formatDateDisplay(dateStr)}`);
+
+          // Clean up old data (older than 7 days)
+          await deleteOldLogs();
+
+          // Refresh analytics
+          await loadWeeklyData();
+        } catch (err) {
+          console.error('Error saving log:', err);
+          showToast('❌ Failed to save. Check console.');
+        } finally {
+          dom.btnSaveLog.disabled = false;
+          dom.btnSaveLog.innerHTML = `
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
+            Save Today's Log
+          `;
+        }
+      }
+
+      /** Deletes any log documents older than 7 days */
+      async function deleteOldLogs() {
+        if (!state.currentUser) return;
+        try {
+          const cutoffDate = getDateStrDaysAgo(7);
+          const oldDocs = await userLogsCollection()
+            .where('date', '<', cutoffDate)
+            .get();
+
+          const batch = db.batch();
+          oldDocs.forEach((doc) => batch.delete(doc.ref));
+          if (!oldDocs.empty) {
+            await batch.commit();
+            console.log(`Deleted ${oldDocs.size} old log(s) before ${cutoffDate}`);
+          }
+        } catch (err) {
+          console.error('Error deleting old logs:', err);
+        }
+      }
+
+      /** Loads the last 7 days of data and renders analytics */
+      async function loadWeeklyData() {
+        if (!state.currentUser) return;
+        try {
+          const cutoffDate = getDateStrDaysAgo(7);
+          const snapshot = await userLogsCollection()
+            .where('date', '>=', cutoffDate)
+            .orderBy('date', 'desc')
+            .get();
+
+          const logs = [];
+          snapshot.forEach((doc) => logs.push(doc.data()));
+
+          renderWeeklyAnalytics(logs);
+        } catch (err) {
+          console.error('Error loading weekly data:', err);
+          // If index not yet created, show a helpful message
+          if (err.code === 'failed-precondition') {
+            console.warn('Firestore composite index required. Check the console link above to create it.');
+          }
+        }
+      }
+
+      /** Renders the weekly analytics UI from an array of log objects */
+      function renderWeeklyAnalytics(logs) {
+        const count = logs.length;
+        dom.analyticsLogCount.textContent = `${count} log${count !== 1 ? 's' : ''}`;
+
+        if (count === 0) {
+          dom.weekTotalCal.textContent = '0';
+          dom.weekTotalPro.textContent = '0';
+          dom.weekAvgCal.textContent = '0';
+          dom.weekAvgPro.textContent = '0';
+          dom.weekCalHitRate.textContent = '0';
+          dom.weekProHitRate.textContent = '0';
+          dom.weeklyTableBody.innerHTML = `
+            <tr><td colspan="8" class="px-4 py-6 text-center text-slate-400 text-sm">No logs yet. Save your first daily log!</td></tr>
+          `;
+          return;
+        }
+
+        let totalCal = 0, totalPro = 0;
+        let calHitDays = 0, proHitDays = 0;
+
+        logs.forEach((log) => {
+          totalCal += log.calories || 0;
+          totalPro += log.protein || 0;
+
+          // "Hit" = within ±10% of goal for calories, or >= goal for protein
+          const calGoal = log.calorieGoal || 2700;
+          const proGoal = log.proteinGoal || 120;
+          if (Math.abs(log.calories - calGoal) <= calGoal * 0.1) calHitDays++;
+          if (log.protein >= proGoal) proHitDays++;
+        });
+
+        dom.weekTotalCal.textContent = Math.round(totalCal).toLocaleString();
+        dom.weekTotalPro.textContent = roundTo(totalPro, 1);
+        dom.weekAvgCal.textContent = Math.round(totalCal / count).toLocaleString();
+        dom.weekAvgPro.textContent = roundTo(totalPro / count, 1);
+        dom.weekCalHitRate.textContent = Math.round((calHitDays / count) * 100);
+        dom.weekProHitRate.textContent = Math.round((proHitDays / count) * 100);
+
+        // Build table rows
+        let rowsHtml = '';
+        logs.forEach((log) => {
+          const calGoal = log.calorieGoal || 2700;
+          const proGoal = log.proteinGoal || 120;
+          const calPct = Math.round((log.calories / calGoal) * 100);
+          const proPct = Math.round((log.protein / proGoal) * 100);
+          const calHit = Math.abs(log.calories - calGoal) <= calGoal * 0.1;
+          const proHit = log.protein >= proGoal;
+          const bothHit = calHit && proHit;
+
+          const statusBadge = bothHit
+            ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">✓ On Track</span>'
+            : calHit || proHit
+              ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">~ Partial</span>'
+              : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">✗ Missed</span>';
+
+          rowsHtml += `
+            <tr class="hover:bg-slate-50/80 transition-colors">
+              <td class="px-4 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">${formatDateDisplay(log.date)}</td>
+              <td class="px-4 py-3 text-sm text-right font-bold text-amber-700">${log.calories.toLocaleString()}</td>
+              <td class="px-4 py-3 text-sm text-right font-bold text-emerald-700">${log.protein}g</td>
+              <td class="px-4 py-3 text-sm text-right text-slate-600">${log.carbs}g</td>
+              <td class="px-4 py-3 text-sm text-right text-slate-600">${log.fats}g</td>
+              <td class="px-4 py-3 text-sm text-right text-slate-500">${calGoal} <span class="text-[10px] text-slate-400">(${calPct}%)</span></td>
+              <td class="px-4 py-3 text-sm text-right text-slate-500">${proGoal}g <span class="text-[10px] text-slate-400">(${proPct}%)</span></td>
+              <td class="px-4 py-3 text-center">${statusBadge}</td>
+            </tr>
+          `;
+        });
+
+        dom.weeklyTableBody.innerHTML = rowsHtml;
+      }
+
+      /* ========================================================
+         FOOD CARD RENDERING & UI
+      ======================================================== */
       function initDefaultState() {
         FOOD_ITEMS.forEach((item) => {
           state.quantities[item.id] = item.defaultQty;
         });
       }
 
-      /**
-       * Builds and injects all 8 food cards into the responsive grid.
-       */
       function renderFoodCards() {
         dom.foodGrid.innerHTML = '';
 
@@ -685,9 +1146,6 @@
         });
       }
 
-      /**
-       * Updates a single food card's UI elements (quantity, slider fill, subtotals, active styling).
-       */
       function updateFoodCardUI(item) {
         const qty = state.quantities[item.id];
         const card = document.getElementById(`card-${item.id}`);
@@ -703,11 +1161,9 @@
         qtyEl.textContent = formatQty(qty);
         sliderEl.value = qty;
 
-        // Visual fill for range slider track
         const pct = ((qty - item.min) / (item.max - item.min)) * 100;
         sliderEl.style.background = `linear-gradient(to right, #10b981 0%, #10b981 ${pct}%, #e2e8f0 ${pct}%, #e2e8f0 100%)`;
 
-        // Calculate per-item subtotals
         const subKcal = Math.round(item.kcal * qty);
         const subPro = roundTo(item.protein * qty, 1);
         const subCarb = roundTo(item.carbs * qty, 1);
@@ -718,7 +1174,6 @@
         carbEl.textContent = `${subCarb}g`;
         fatEl.textContent = `${subFat}g`;
 
-        // Subtle visual dimming when a food item is set to 0
         if (qty === 0) {
           card.classList.add('opacity-75', 'bg-slate-50/70');
           card.classList.remove('bg-white');
@@ -728,10 +1183,6 @@
         }
       }
 
-      /**
-       * Recalculates all daily totals, goal percentages, macro calorie split,
-       * and updates both the main summary section and floating sticky bar.
-       */
       function recalculateTotals() {
         try {
           let totalKcal = 0;
@@ -743,7 +1194,6 @@
           FOOD_ITEMS.forEach((item) => {
             const qty = state.quantities[item.id] || 0;
             if (qty > 0) activeCount += 1;
-
             totalKcal += item.kcal * qty;
             totalPro += item.protein * qty;
             totalCarbs += item.carbs * qty;
@@ -755,34 +1205,28 @@
           const roundedCarbs = roundTo(totalCarbs, 1);
           const roundedFats = roundTo(totalFats, 1);
 
-          // Update Primary Metric Cards
           dom.totalCalories.textContent = roundedKcal.toLocaleString();
           dom.totalProtein.textContent = roundedPro;
           dom.totalCarbs.textContent = roundedCarbs;
           dom.totalFats.textContent = roundedFats;
 
-          // Update Floating Bar
           dom.floatCalories.textContent = roundedKcal.toLocaleString();
           dom.floatProtein.textContent = `${roundedPro}g`;
           dom.floatCarbs.textContent = `${roundedCarbs}g`;
           dom.floatFats.textContent = `${roundedFats}g`;
 
-          // Active foods badge
           dom.activeItemsBadge.textContent = `${activeCount} / ${FOOD_ITEMS.length} foods active`;
 
-          // Calorie Goal Progress
           const calGoal = Math.max(1, state.calorieGoal);
           const calPct = Math.round((roundedKcal / calGoal) * 100);
           dom.calPercentBadge.textContent = `${calPct}%`;
           dom.calorieProgressBar.style.width = `${Math.min(calPct, 100)}%`;
 
-          // Protein Goal Progress
           const proGoal = Math.max(1, state.proteinGoal);
           const proPct = Math.round((roundedPro / proGoal) * 100);
           dom.proPercentBadge.textContent = `${proPct}%`;
           dom.proteinProgressBar.style.width = `${Math.min(proPct, 100)}%`;
 
-          // Macro Calorie Breakdown (Protein = 4 kcal/g, Carbs = 4 kcal/g, Fats = 9 kcal/g)
           const proKcal = roundedPro * 4;
           const carbKcal = roundedCarbs * 4;
           const fatKcal = roundedFats * 9;
@@ -798,7 +1242,6 @@
             splitFat = Math.max(0, 100 - splitPro - splitCarb);
           }
 
-          // Update Carbs & Fats Energy Cards
           dom.carbsKcalText.textContent = `${Math.round(carbKcal).toLocaleString()} kcal`;
           dom.fatsKcalText.textContent = `${Math.round(fatKcal).toLocaleString()} kcal`;
           dom.carbShareBadge.textContent = `${splitCarb}% kcal`;
@@ -806,7 +1249,6 @@
           dom.carbShareBar.style.width = `${splitCarb}%`;
           dom.fatShareBar.style.width = `${splitFat}%`;
 
-          // Update Macro Split Bar
           dom.splitProteinPct.textContent = `${splitPro}%`;
           dom.splitCarbsPct.textContent = `${splitCarb}%`;
           dom.splitFatsPct.textContent = `${splitFat}%`;
@@ -818,59 +1260,47 @@
         }
       }
 
-      /**
-       * Sets a food item's quantity, clamping to valid min/max bounds and step precision.
-       */
       function setItemQuantity(id, newQty) {
         const item = FOOD_ITEMS.find((f) => f.id === id);
         if (!item) return;
-
         const clamped = Math.min(item.max, Math.max(item.min, roundTo(newQty, 1)));
         state.quantities[id] = clamped;
-
         updateFoodCardUI(item);
         recalculateTotals();
       }
 
-      /**
-       * Refreshes all 8 cards and totals at once.
-       */
       function updateAllUI() {
         FOOD_ITEMS.forEach(updateFoodCardUI);
         recalculateTotals();
       }
 
-      /**
-       * Attaches all event listeners using event delegation for clean, fast interactions.
-       */
+      /* ========================================================
+         EVENT BINDINGS
+      ======================================================== */
       function bindEvents() {
-        // Delegate +/- button clicks on the food grid
+        // Food grid +/- buttons
         dom.foodGrid.addEventListener('click', (e) => {
           const btn = e.target.closest('button[data-action]');
           if (!btn) return;
-
           const id = btn.dataset.id;
           const action = btn.dataset.action;
           const item = FOOD_ITEMS.find((f) => f.id === id);
           if (!item) return;
-
           const current = state.quantities[id] || 0;
           const next = action === 'increment' ? current + item.step : current - item.step;
           setItemQuantity(id, next);
         });
 
-        // Delegate slider input events for smooth real-time updates
+        // Sliders
         dom.foodGrid.addEventListener('input', (e) => {
           if (e.target.matches('input[type="range"].food-slider')) {
             const id = e.target.dataset.id;
             const val = parseFloat(e.target.value);
-            if (!Number.isNaN(val)) {
-              setItemQuantity(id, val);
-            }
+            if (!Number.isNaN(val)) setItemQuantity(id, val);
           }
         });
 
-        // Inline editable Calorie Goal
+        // Calorie Goal
         dom.calorieGoalInput.addEventListener('input', (e) => {
           const val = parseInt(e.target.value, 10);
           if (!Number.isNaN(val) && val > 0) {
@@ -878,7 +1308,6 @@
             recalculateTotals();
           }
         });
-
         dom.calorieGoalInput.addEventListener('blur', (e) => {
           const val = parseInt(e.target.value, 10);
           if (Number.isNaN(val) || val < 500) {
@@ -888,7 +1317,7 @@
           }
         });
 
-        // Inline editable Protein Goal
+        // Protein Goal
         dom.proteinGoalInput.addEventListener('input', (e) => {
           const val = parseInt(e.target.value, 10);
           if (!Number.isNaN(val) && val > 0) {
@@ -896,7 +1325,6 @@
             recalculateTotals();
           }
         });
-
         dom.proteinGoalInput.addEventListener('blur', (e) => {
           const val = parseInt(e.target.value, 10);
           if (Number.isNaN(val) || val < 20) {
@@ -906,14 +1334,14 @@
           }
         });
 
-        // Quick Action: Recommended Plan
+        // Recommended Plan
         dom.btnRecommended.addEventListener('click', () => {
           initDefaultState();
           updateAllUI();
           showToast('Loaded Recommended Lean Bulk Plan');
         });
 
-        // Quick Action: Reset to 0
+        // Reset to 0
         dom.btnResetZero.addEventListener('click', () => {
           FOOD_ITEMS.forEach((item) => {
             state.quantities[item.id] = 0;
@@ -922,7 +1350,47 @@
           showToast('All food portions cleared to 0');
         });
 
-        // IntersectionObserver to show/hide compact sticky bar when scrolling past Daily Totals
+        // Google Sign In
+        dom.btnGoogleSignIn.addEventListener('click', async () => {
+          try {
+            await auth.signInWithPopup(googleProvider);
+            showToast('✅ Signed in successfully!');
+          } catch (err) {
+            if (err.code !== 'auth/popup-closed-by-user') {
+              console.error('Sign-in error:', err);
+              showToast('❌ Sign-in failed: ' + err.message);
+            }
+          }
+        });
+
+        // Sign Out
+        dom.btnSignOut.addEventListener('click', async () => {
+          try {
+            await auth.signOut();
+            showToast('Signed out');
+          } catch (err) {
+            console.error('Sign-out error:', err);
+          }
+        });
+
+        // Save Today's Log
+        dom.btnSaveLog.addEventListener('click', saveTodayLog);
+
+        // Toggle Weekly Analytics panel
+        dom.btnToggleAnalytics.addEventListener('click', () => {
+          const panel = dom.analyticsPanel;
+          const chevron = dom.analyticsChevron;
+          const isOpen = panel.classList.contains('open');
+          if (isOpen) {
+            panel.classList.remove('open');
+            chevron.classList.remove('rotated');
+          } else {
+            panel.classList.add('open');
+            chevron.classList.add('rotated');
+          }
+        });
+
+        // IntersectionObserver for compact sticky bar
         if ('IntersectionObserver' in window && dom.dailyTotalsSection && dom.floatingSummaryBar) {
           const observer = new IntersectionObserver(
             (entries) => {
