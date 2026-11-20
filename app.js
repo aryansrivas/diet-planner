@@ -152,6 +152,7 @@ export const FOOD_ITEMS = [
 // Application State
 export const state = {
   quantities: {},
+  customFoods: [],
   calorieGoal: 2700,
   proteinGoal: 120,
   currentUser: null,
@@ -163,6 +164,11 @@ let dom = {};
 function initDomElements() {
   dom = {
     foodGrid: document.getElementById('foodGrid'),
+    usdaFoodSearch: document.getElementById('usdaFoodSearch'),
+    usdaFoodResults: document.getElementById('usdaFoodResults'),
+    usdaSearchSpinner: document.getElementById('usdaSearchSpinner'),
+    usdaSearchMessage: document.getElementById('usdaSearchMessage'),
+    customFoodList: document.getElementById('customFoodList'),
     totalCalories: document.getElementById('totalCalories'),
     totalProtein: document.getElementById('totalProtein'),
     totalCarbs: document.getElementById('totalCarbs'),
@@ -259,6 +265,9 @@ let toastTimer = null;
 let weeklyChartInstance = null;
 let currentGraphMode = 'calories'; // 'calories' | 'protein'
 let cachedWeeklyLogs = [];
+let usdaSearchTimer = null;
+let usdaSearchController = null;
+let currentUsdaResults = [];
 
 /* ========================================================
    UTILITY HELPERS
@@ -635,6 +644,15 @@ export async function saveTodayLog() {
     totalFats += item.fat * qty;
   });
 
+  const customFoods = state.customFoods.filter((food) => food.grams > 0);
+  customFoods.forEach((food) => {
+    const factor = food.grams / 100;
+    totalKcal += food.kcal * factor;
+    totalPro += food.protein * factor;
+    totalCarbs += food.carbs * factor;
+    totalFats += food.fat * factor;
+  });
+
   const logData = {
     date: dateStr,
     calories: Math.round(totalKcal),
@@ -644,6 +662,7 @@ export async function saveTodayLog() {
     calorieGoal: state.calorieGoal,
     proteinGoal: state.proteinGoal,
     portions: portions,
+    customFoods: customFoods,
     savedAt: firebase.firestore.FieldValue.serverTimestamp(),
   };
 
@@ -829,6 +848,204 @@ export function initDefaultState() {
   });
 }
 
+function customFoodsStorageKey() {
+  return `dietPlannerCustomFoods:${getTodayDateStr()}`;
+}
+
+function persistCustomFoods() {
+  try {
+    localStorage.setItem(customFoodsStorageKey(), JSON.stringify(state.customFoods));
+  } catch (err) {
+    console.warn('Could not save extra foods on this device:', err);
+  }
+}
+
+function loadCustomFoods() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(customFoodsStorageKey()) || '[]');
+    state.customFoods = Array.isArray(saved)
+      ? saved.filter((food) => food && Number.isFinite(Number(food.fdcId)) && Number.isFinite(Number(food.grams)))
+        .map((food) => ({
+          fdcId: Number(food.fdcId),
+          name: String(food.name || 'USDA food').slice(0, 180),
+          dataType: String(food.dataType || 'USDA').slice(0, 40),
+          kcal: Number(food.kcal) || 0,
+          protein: Number(food.protein) || 0,
+          carbs: Number(food.carbs) || 0,
+          fat: Number(food.fat) || 0,
+          fiber: Number(food.fiber) || 0,
+          sodium: Number(food.sodium) || 0,
+          grams: Math.min(1000, Math.max(0, Number(food.grams) || 0)),
+        }))
+      : [];
+  } catch (err) {
+    state.customFoods = [];
+  }
+}
+
+function renderCustomFoods() {
+  if (!dom.customFoodList) return;
+  dom.customFoodList.replaceChildren();
+
+  state.customFoods.forEach((food) => {
+    const card = document.createElement('article');
+    card.className = 'custom-food-card rounded-2xl border border-white/80 bg-white/75 p-4 shadow-sm backdrop-blur-xl';
+    card.dataset.fdcId = String(food.fdcId);
+
+    const heading = document.createElement('div');
+    heading.className = 'mb-3 flex items-start justify-between gap-3';
+    const headingText = document.createElement('div');
+    const title = document.createElement('h3');
+    title.className = 'text-sm font-bold leading-snug text-slate-900';
+    title.textContent = food.name;
+    const source = document.createElement('p');
+    source.className = 'mt-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700';
+    source.textContent = `${food.dataType} · USDA · values per 100 g`;
+    headingText.append(title, source);
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 transition hover:bg-rose-50 hover:text-rose-700';
+    remove.dataset.action = 'remove-custom-food';
+    remove.dataset.fdcId = String(food.fdcId);
+    remove.setAttribute('aria-label', `Remove ${food.name}`);
+    remove.textContent = 'Remove';
+    heading.append(headingText, remove);
+
+    const nutrition = document.createElement('div');
+    nutrition.className = 'mb-3 grid grid-cols-3 gap-2 text-center';
+    const nutrientFields = [
+      ['Calories', 'kcal', food.kcal, 0],
+      ['Protein', 'g', food.protein, 1],
+      ['Carbs', 'g', food.carbs, 1],
+      ['Fat', 'g', food.fat, 1],
+      ['Fiber', 'g', food.fiber, 1],
+      ['Sodium', 'mg', food.sodium, 0],
+    ];
+    nutrientFields.forEach(([label, unit, amount, decimals]) => {
+      const cell = document.createElement('div');
+      cell.className = 'rounded-xl bg-emerald-50/70 px-2 py-2';
+      const labelEl = document.createElement('span');
+      labelEl.className = 'block text-[9px] font-bold uppercase tracking-wide text-emerald-800';
+      labelEl.textContent = label;
+      const valueEl = document.createElement('span');
+      valueEl.className = 'mt-0.5 block text-xs font-bold text-slate-900';
+      valueEl.dataset.nutrient = label.toLowerCase();
+      valueEl.dataset.unit = unit;
+      valueEl.dataset.decimals = String(decimals);
+      valueEl.textContent = `${roundTo(amount * food.grams / 100, decimals)} ${unit}`;
+      cell.append(labelEl, valueEl);
+      nutrition.append(cell);
+    });
+
+    const sliderLabel = document.createElement('label');
+    sliderLabel.className = 'flex items-center justify-between text-xs font-semibold text-slate-700';
+    sliderLabel.htmlFor = `custom-food-slider-${food.fdcId}`;
+    sliderLabel.append(document.createTextNode('Amount eaten'));
+    const grams = document.createElement('output');
+    grams.dataset.gramsOutput = '';
+    grams.className = 'font-extrabold text-emerald-800';
+    grams.textContent = `${food.grams} g`;
+    sliderLabel.append(grams);
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.id = `custom-food-slider-${food.fdcId}`;
+    slider.className = 'custom-food-grams mt-2 w-full accent-emerald-600';
+    slider.min = '0';
+    slider.max = '1000';
+    slider.step = '5';
+    slider.value = String(food.grams);
+    slider.dataset.fdcId = String(food.fdcId);
+    slider.setAttribute('aria-label', `${food.name} quantity in grams`);
+
+    card.append(heading, nutrition, sliderLabel, slider);
+    dom.customFoodList.append(card);
+  });
+}
+
+function updateCustomFoodCard(food) {
+  const card = dom.customFoodList?.querySelector(`[data-fdc-id="${food.fdcId}"]`);
+  if (!card) return;
+  const factor = food.grams / 100;
+  card.querySelector('[data-grams-output]').textContent = `${food.grams} g`;
+  card.querySelectorAll('[data-nutrient]').forEach((valueEl) => {
+    const key = valueEl.dataset.nutrient === 'calories' ? 'kcal' : valueEl.dataset.nutrient === 'fat' ? 'fat' : valueEl.dataset.nutrient;
+    const amount = Number(food[key]) || 0;
+    const decimals = Number(valueEl.dataset.decimals) || 0;
+    valueEl.textContent = `${roundTo(amount * factor, decimals)} ${valueEl.dataset.unit}`;
+  });
+}
+
+function renderUsdaResults(foods) {
+  if (!dom.usdaFoodResults) return;
+  currentUsdaResults = foods;
+  dom.usdaFoodResults.replaceChildren();
+  foods.forEach((food, index) => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.role = 'option';
+    option.className = 'block w-full border-b border-slate-100 px-4 py-3 text-left transition last:border-0 hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none';
+    option.dataset.searchIndex = String(index);
+    const name = document.createElement('span');
+    name.className = 'block text-sm font-semibold text-slate-900';
+    name.textContent = food.name;
+    const details = document.createElement('span');
+    details.className = 'mt-1 block text-xs text-slate-500';
+    details.textContent = `${food.dataType} · ${Math.round(food.kcal)} kcal · ${roundTo(food.protein, 1)} g protein per 100 g`;
+    option.append(name, details);
+    dom.usdaFoodResults.append(option);
+  });
+  dom.usdaFoodResults.classList.toggle('hidden', foods.length === 0);
+  dom.usdaFoodSearch?.setAttribute('aria-expanded', String(foods.length > 0));
+}
+
+async function searchUsdaFoods(query) {
+  usdaSearchController?.abort();
+  usdaSearchController = new AbortController();
+  const controller = usdaSearchController;
+  if (query.length < 2) {
+    dom.usdaSearchSpinner?.classList.add('hidden');
+    renderUsdaResults([]);
+    dom.usdaSearchMessage.textContent = 'Enter at least 2 characters to search USDA foods.';
+    return;
+  }
+
+  dom.usdaSearchSpinner?.classList.remove('hidden');
+  dom.usdaSearchMessage.textContent = 'Searching USDA FoodData Central…';
+  try {
+    const response = await fetch(`/api/foods?query=${encodeURIComponent(query)}`, { signal: controller.signal });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || 'USDA search is unavailable.');
+    if (controller.signal.aborted) return;
+    renderUsdaResults(payload.foods || []);
+    dom.usdaSearchMessage.textContent = payload.foods?.length
+      ? `${payload.foods.length} USDA foods found. Select one to add it to today’s foods.`
+      : 'No matching USDA foods found. Try a more specific search.';
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    renderUsdaResults([]);
+    dom.usdaSearchMessage.textContent = err.message || 'Could not reach USDA FoodData Central. Try again shortly.';
+  } finally {
+    if (usdaSearchController === controller) dom.usdaSearchSpinner?.classList.add('hidden');
+  }
+}
+
+function addCustomFood(food) {
+  const fdcId = Number(food.fdcId);
+  if (state.customFoods.some((item) => item.fdcId === fdcId)) {
+    showToast('That USDA food is already in today’s list');
+    return;
+  }
+  state.customFoods.push({ ...food, fdcId, grams: 100 });
+  persistCustomFoods();
+  renderCustomFoods();
+  recalculateTotals();
+  dom.usdaFoodSearch.value = '';
+  renderUsdaResults([]);
+  dom.usdaSearchMessage.textContent = 'Food added. Adjust the slider to the amount eaten.';
+}
+
 export function renderFoodCards() {
   if (!dom.foodGrid) return;
   dom.foodGrid.innerHTML = '';
@@ -984,6 +1201,15 @@ export function recalculateTotals() {
       totalFats += item.fat * qty;
     });
 
+    state.customFoods.forEach((food) => {
+      const factor = food.grams / 100;
+      if (food.grams > 0) activeCount += 1;
+      totalKcal += food.kcal * factor;
+      totalPro += food.protein * factor;
+      totalCarbs += food.carbs * factor;
+      totalFats += food.fat * factor;
+    });
+
     const roundedKcal = Math.round(totalKcal);
     const roundedPro = roundTo(totalPro, 1);
     const roundedCarbs = roundTo(totalCarbs, 1);
@@ -999,7 +1225,7 @@ export function recalculateTotals() {
     if (dom.floatCarbs) dom.floatCarbs.textContent = `${roundedCarbs}g`;
     if (dom.floatFats) dom.floatFats.textContent = `${roundedFats}g`;
 
-    if (dom.activeItemsBadge) dom.activeItemsBadge.textContent = `${activeCount} / ${FOOD_ITEMS.length} foods active`;
+    if (dom.activeItemsBadge) dom.activeItemsBadge.textContent = `${activeCount} / ${FOOD_ITEMS.length + state.customFoods.length} foods active`;
 
     const calGoal = Math.max(1, state.calorieGoal);
     const calPct = Math.round((roundedKcal / calGoal) * 100);
@@ -1062,6 +1288,7 @@ export function setItemQuantity(id, newQty) {
 
 export function updateAllUI() {
   FOOD_ITEMS.forEach(updateFoodCardUI);
+  renderCustomFoods();
   recalculateTotals();
 }
 
@@ -1069,6 +1296,67 @@ export function updateAllUI() {
    EVENT BINDINGS
 ======================================================== */
 export function bindEvents() {
+  if (dom.usdaFoodSearch) {
+    dom.usdaFoodSearch.addEventListener('input', () => {
+      window.clearTimeout(usdaSearchTimer);
+      const query = dom.usdaFoodSearch.value.trim();
+      usdaSearchTimer = window.setTimeout(() => searchUsdaFoods(query), 300);
+    });
+    dom.usdaFoodSearch.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        renderUsdaResults([]);
+        dom.usdaSearchMessage.textContent = 'Search closed.';
+      } else if (event.key === 'ArrowDown' && !dom.usdaFoodResults.classList.contains('hidden')) {
+        event.preventDefault();
+        dom.usdaFoodResults.querySelector('button')?.focus();
+      }
+    });
+  }
+
+  if (dom.usdaFoodResults) {
+    dom.usdaFoodResults.addEventListener('keydown', (event) => {
+      if (!['ArrowDown', 'ArrowUp', 'Escape'].includes(event.key)) return;
+      const options = [...dom.usdaFoodResults.querySelectorAll('button[data-search-index]')];
+      const index = options.indexOf(document.activeElement);
+      if (event.key === 'Escape') {
+        dom.usdaFoodSearch.focus();
+        renderUsdaResults([]);
+        return;
+      }
+      event.preventDefault();
+      const nextIndex = event.key === 'ArrowDown' ? Math.min(index + 1, options.length - 1) : index - 1;
+      if (nextIndex < 0) dom.usdaFoodSearch.focus();
+      else options[nextIndex]?.focus();
+    });
+    dom.usdaFoodResults.addEventListener('click', (event) => {
+      const option = event.target.closest('button[data-search-index]');
+      if (!option) return;
+      const food = currentUsdaResults[Number(option.dataset.searchIndex)];
+      if (food) addCustomFood(food);
+    });
+  }
+
+  if (dom.customFoodList) {
+    dom.customFoodList.addEventListener('input', (event) => {
+      if (!event.target.matches('.custom-food-grams')) return;
+      const food = state.customFoods.find((item) => item.fdcId === Number(event.target.dataset.fdcId));
+      if (!food) return;
+      food.grams = Number(event.target.value);
+      updateCustomFoodCard(food);
+      persistCustomFoods();
+      recalculateTotals();
+    });
+    dom.customFoodList.addEventListener('click', (event) => {
+      const remove = event.target.closest('button[data-action="remove-custom-food"]');
+      if (!remove) return;
+      const fdcId = Number(remove.dataset.fdcId);
+      state.customFoods = state.customFoods.filter((food) => food.fdcId !== fdcId);
+      persistCustomFoods();
+      renderCustomFoods();
+      recalculateTotals();
+    });
+  }
+
   // Food grid +/- buttons
   dom.foodGrid.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-action]');
@@ -1137,6 +1425,8 @@ export function bindEvents() {
     FOOD_ITEMS.forEach((item) => {
       state.quantities[item.id] = 0;
     });
+    state.customFoods.forEach((food) => { food.grams = 0; });
+    persistCustomFoods();
     updateAllUI();
     showToast('All food portions cleared to 0');
   });
@@ -1334,7 +1624,9 @@ export function init() {
   try {
     initDomElements();
     initDefaultState();
+    loadCustomFoods();
     renderFoodCards();
+    renderCustomFoods();
     bindEvents();
     updateAllUI();
   } catch (err) {
