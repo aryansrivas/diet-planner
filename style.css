@@ -111,3 +111,186 @@ input[type='number'] {
 #userDashboardDropdown::-webkit-scrollbar-thumb:hover {
   background: rgba(16, 185, 129, 0.8);
 }
+
+/* Liquid glass refresh: soft botanical light, translucent surfaces, and clearer depth. */
+:root {
+  color-scheme: light;
+  --glass-border: rgba(255, 255, 255, 0.78);
+  --glass-surface: rgba(255, 255, 255, 0.68);
+  --glass-shadow: 0 18px 54px rgba(35, 69, 55, 0.09), 0 2px 8px rgba(35, 69, 55, 0.04);
+}
+
+body {
+  color: #15271f;
+  background:
+    radial-gradient(ellipse at 8% 8%, rgba(135, 220, 178, 0.32), transparent 32rem),
+    radial-gradient(ellipse at 92% 18%, rgba(173, 217, 245, 0.34), transparent 30rem),
+    radial-gradient(ellipse at 72% 78%, rgba(223, 239, 186, 0.28), transparent 34rem),
+    linear-gradient(145deg, #f4faf6 0%, #eef5f7 48%, #f8faf2 100%);
+  background-attachment: fixed;
+}
+
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: "";
+  opacity: 0.22;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.12'/%3E%3C/svg%3E");
+}
+
+#navBar,
+#floatingSummaryBar {
+  background: rgba(248, 252, 250, 0.72) !important;
+  border-color: rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 8px 28px rgba(37, 69, 55, 0.06);
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  backdrop-filter: blur(24px) saturate(165%);
+}
+
+body > div.max-w-6xl {
+  padding-top: clamp(1.5rem, 4vw, 3.25rem);
+}
+
+body > div.max-w-6xl > header:first-child {
+  align-items: end;
+  margin-bottom: 1.75rem;
+}
+
+body > div.max-w-6xl > header:first-child h1 {
+  max-width: 46rem;
+  color: #14281f;
+  letter-spacing: -0.045em;
+  line-height: 1.08;
+}
+
+body > div.max-w-6xl > header:first-child p {
+  max-width: 40rem;
+  color: #5d7469;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+#dailyTotalsSection,
+#guestPromptBanner,
+#weeklyAnalyticsSection > button,
+#weeklyAnalyticsSection .bg-white,
+#foodGrid > article {
+  border: 1px solid var(--glass-border) !important;
+  background-color: var(--glass-surface) !important;
+  box-shadow: var(--glass-shadow) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(155%);
+  backdrop-filter: blur(22px) saturate(155%);
+}
+
+#dailyTotalsSection {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.75rem !important;
+  padding: clamp(1rem, 3vw, 1.75rem) !important;
+}
+
+#dailyTotalsSection::before {
+  position: absolute;
+  top: -5.5rem;
+  right: -3rem;
+  width: 15rem;
+  height: 15rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(158, 224, 188, 0.25), transparent 68%);
+  content: "";
+  pointer-events: none;
+}
+
+#dailyTotalsSection > * {
+  position: relative;
+}
+
+#dailyTotalsSection > div.grid > div {
+  border-radius: 1.25rem !important;
+  border-color: rgba(255, 255, 255, 0.78) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 5px 18px rgba(35, 69, 55, 0.035);
+}
+
+#guestPromptBanner {
+  border-radius: 1.4rem !important;
+}
+
+#foodGrid > article {
+  min-height: 19rem;
+  border-radius: 1.45rem !important;
+  padding: 1.15rem !important;
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+#foodGrid > article:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 22px 56px rgba(35, 69, 55, 0.13), 0 3px 10px rgba(35, 69, 55, 0.05) !important;
+}
+
+#foodGrid > article > div:nth-child(2) {
+  border-color: rgba(255, 255, 255, 0.82) !important;
+  background: rgba(239, 247, 242, 0.68) !important;
+  border-radius: 1rem !important;
+}
+
+#foodGrid > article > div:first-child > div:first-child > div:first-child {
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: linear-gradient(145deg, rgba(219, 244, 229, 0.95), rgba(225, 239, 249, 0.9)) !important;
+  box-shadow: inset 0 1px 0 #fff, 0 5px 14px rgba(56, 105, 77, 0.08);
+}
+
+#weeklyAnalyticsSection > button {
+  border-radius: 1.4rem !important;
+}
+
+#analyticsPanel > div > div,
+#analyticsPanel .overflow-hidden {
+  border: 1px solid rgba(255, 255, 255, 0.82) !important;
+  border-radius: 1.25rem !important;
+  box-shadow: var(--glass-shadow);
+}
+
+#userDashboardDropdown {
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 28px 80px rgba(10, 32, 23, 0.32) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(145%);
+  backdrop-filter: blur(30px) saturate(145%);
+}
+
+button {
+  transition-duration: 180ms;
+}
+
+input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(16, 145, 91, 0.55);
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  body > div.max-w-6xl > header:first-child {
+    align-items: stretch;
+  }
+
+  #foodGrid > article {
+    min-height: 0;
+  }
+
+  #dailyTotalsSection {
+    border-radius: 1.35rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
