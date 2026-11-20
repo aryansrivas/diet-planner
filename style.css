@@ -1,3 +1,8 @@
+html {
+  /* Disable double-tap zoom while retaining native pinch-to-zoom. */
+  touch-action: manipulation;
+}
+
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-tap-highlight-color: transparent;
