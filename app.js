@@ -199,10 +199,19 @@ function initDomElements() {
     authStatus: document.getElementById('authStatus'),
     btnGoogleSignIn: document.getElementById('btnGoogleSignIn'),
     btnSignOut: document.getElementById('btnSignOut'),
+    // Navigation User Dropdown elements
+    userDropdownWrapper: document.getElementById('userDropdownWrapper'),
+    btnUserDropdownToggle: document.getElementById('btnUserDropdownToggle'),
+    userDashboardDropdown: document.getElementById('userDashboardDropdown'),
+    navDropdownChevron: document.getElementById('navDropdownChevron'),
+    navAvatarImg: document.getElementById('navAvatarImg'),
+    navAvatarFallback: document.getElementById('navAvatarFallback'),
+    navUserName: document.getElementById('navUserName'),
+    dashUserEmail: document.getElementById('dashUserEmail'),
     // Personal Dashboard elements
     guestPromptBanner: document.getElementById('guestPromptBanner'),
     btnBannerSignIn: document.getElementById('btnBannerSignIn'),
-    personalDashboardSection: document.getElementById('personalDashboardSection'),
+    personalDashboardSection: document.getElementById('userDashboardDropdown'),
     dashAvatarImg: document.getElementById('dashAvatarImg'),
     dashAvatarFallback: document.getElementById('dashAvatarFallback'),
     dashDateBadge: document.getElementById('dashDateBadge'),
@@ -535,22 +544,29 @@ export async function handleAuthStateChange(user) {
     const fullName = user.displayName || user.email?.split('@')[0] || 'Athlete';
     const firstName = fullName.split(' ')[0];
 
-    const photoHtml = user.photoURL
-      ? `<img src="${user.photoURL}" alt="avatar" class="auth-avatar" referrerpolicy="no-referrer" />`
-      : `<div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm">${firstName[0].toUpperCase()}</div>`;
-    dom.authStatus.innerHTML = `
-      ${photoHtml}
-      <span class="text-sm font-semibold text-slate-700">${user.displayName || user.email}</span>
-    `;
-    dom.btnGoogleSignIn.classList.add('hidden');
-    dom.btnSignOut.classList.remove('hidden');
-    dom.saveLogSection.classList.remove('hidden');
-    dom.weeklyAnalyticsSection.classList.remove('hidden');
+    // Navbar user dropdown trigger setup
+    if (dom.navUserName) dom.navUserName.textContent = firstName;
+    if (user.photoURL && dom.navAvatarImg) {
+      dom.navAvatarImg.src = user.photoURL;
+      dom.navAvatarImg.classList.remove('hidden');
+      if (dom.navAvatarFallback) dom.navAvatarFallback.classList.add('hidden');
+    } else if (dom.navAvatarFallback) {
+      dom.navAvatarFallback.textContent = firstName[0].toUpperCase();
+      dom.navAvatarFallback.classList.remove('hidden');
+      if (dom.navAvatarImg) dom.navAvatarImg.classList.add('hidden');
+    }
+
+    if (dom.userDropdownWrapper) dom.userDropdownWrapper.classList.remove('hidden');
+    if (dom.btnGoogleSignIn) dom.btnGoogleSignIn.classList.add('hidden');
+    if (dom.btnSignOut) dom.btnSignOut.classList.remove('hidden');
+    if (dom.saveLogSection) dom.saveLogSection.classList.remove('hidden');
+    if (dom.weeklyAnalyticsSection) dom.weeklyAnalyticsSection.classList.remove('hidden');
 
     if (dom.guestPromptBanner) dom.guestPromptBanner.classList.add('hidden');
-    if (dom.personalDashboardSection) dom.personalDashboardSection.classList.remove('hidden');
 
+    // Dashboard inside dropdown
     if (dom.dashUserName) dom.dashUserName.textContent = firstName;
+    if (dom.dashUserEmail) dom.dashUserEmail.textContent = user.email || '';
     if (dom.dashDateBadge) {
       dom.dashDateBadge.textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
     }
@@ -558,7 +574,7 @@ export async function handleAuthStateChange(user) {
     const hour = new Date().getHours();
     const timeGreeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
     if (dom.dashGreetingSub) {
-      dom.dashGreetingSub.textContent = `${timeGreeting}, ${firstName}! Review your 7-day intake graph, manage personal targets, and log today's meal plan.`;
+      dom.dashGreetingSub.textContent = `${timeGreeting}, ${firstName}!`;
     }
 
     if (user.photoURL && dom.dashAvatarImg) {
@@ -574,17 +590,15 @@ export async function handleAuthStateChange(user) {
     await loadUserTargets(user.uid);
     await loadWeeklyData();
   } else {
-    dom.authStatus.innerHTML = `
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
-      <span>Not signed in</span>
-    `;
-    dom.btnGoogleSignIn.classList.remove('hidden');
-    dom.btnSignOut.classList.add('hidden');
-    dom.saveLogSection.classList.add('hidden');
-    dom.weeklyAnalyticsSection.classList.add('hidden');
+    if (dom.userDropdownWrapper) dom.userDropdownWrapper.classList.add('hidden');
+    if (dom.userDashboardDropdown) dom.userDashboardDropdown.classList.add('hidden');
+    if (dom.navDropdownChevron) dom.navDropdownChevron.classList.remove('rotate-180');
+    if (dom.btnGoogleSignIn) dom.btnGoogleSignIn.classList.remove('hidden');
+    if (dom.btnSignOut) dom.btnSignOut.classList.add('hidden');
+    if (dom.saveLogSection) dom.saveLogSection.classList.add('hidden');
+    if (dom.weeklyAnalyticsSection) dom.weeklyAnalyticsSection.classList.add('hidden');
 
     if (dom.guestPromptBanner) dom.guestPromptBanner.classList.remove('hidden');
-    if (dom.personalDashboardSection) dom.personalDashboardSection.classList.add('hidden');
 
     if (weeklyChartInstance) {
       weeklyChartInstance.destroy();
@@ -1143,12 +1157,56 @@ export function bindEvents() {
   // Sign Out
   dom.btnSignOut.addEventListener('click', async () => {
     try {
+      if (dom.userDashboardDropdown) dom.userDashboardDropdown.classList.add('hidden');
+      if (dom.btnUserDropdownToggle) dom.btnUserDropdownToggle.setAttribute('aria-expanded', 'false');
+      if (dom.navDropdownChevron) dom.navDropdownChevron.classList.remove('rotate-180');
       await auth.signOut();
       showToast('Signed out');
     } catch (err) {
       console.error('Sign-out error:', err);
     }
   });
+
+  // Navigation User Dashboard Dropdown Toggle & Interactions
+  if (dom.btnUserDropdownToggle && dom.userDashboardDropdown) {
+    dom.btnUserDropdownToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isHidden = dom.userDashboardDropdown.classList.contains('hidden');
+      if (isHidden) {
+        dom.userDashboardDropdown.classList.remove('hidden');
+        dom.btnUserDropdownToggle.setAttribute('aria-expanded', 'true');
+        if (dom.navDropdownChevron) dom.navDropdownChevron.classList.add('rotate-180');
+        // Render or resize chart smoothly after dropdown is revealed
+        setTimeout(() => {
+          if (weeklyChartInstance) {
+            weeklyChartInstance.resize();
+          } else if (cachedWeeklyLogs && cachedWeeklyLogs.length > 0) {
+            renderWeeklyChart(cachedWeeklyLogs);
+          }
+        }, 60);
+      } else {
+        dom.userDashboardDropdown.classList.add('hidden');
+        dom.btnUserDropdownToggle.setAttribute('aria-expanded', 'false');
+        if (dom.navDropdownChevron) dom.navDropdownChevron.classList.remove('rotate-180');
+      }
+    });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', (e) => {
+      if (dom.userDashboardDropdown && !dom.userDashboardDropdown.classList.contains('hidden')) {
+        if (!dom.userDashboardDropdown.contains(e.target) && !dom.btnUserDropdownToggle.contains(e.target)) {
+          dom.userDashboardDropdown.classList.add('hidden');
+          dom.btnUserDropdownToggle.setAttribute('aria-expanded', 'false');
+          if (dom.navDropdownChevron) dom.navDropdownChevron.classList.remove('rotate-180');
+        }
+      }
+    });
+
+    // Prevent clicks inside the dropdown from closing it accidentally
+    dom.userDashboardDropdown.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
 
   // Save Today's Log
   dom.btnSaveLog.addEventListener('click', saveTodayLog);
@@ -1225,6 +1283,12 @@ export function bindEvents() {
   // Dashboard View History / Analytics Button
   if (dom.dashBtnViewFullAnalytics) {
     dom.dashBtnViewFullAnalytics.addEventListener('click', () => {
+      // Close dropdown
+      if (dom.userDashboardDropdown) {
+        dom.userDashboardDropdown.classList.add('hidden');
+        if (dom.btnUserDropdownToggle) dom.btnUserDropdownToggle.setAttribute('aria-expanded', 'false');
+        if (dom.navDropdownChevron) dom.navDropdownChevron.classList.remove('rotate-180');
+      }
       if (dom.analyticsPanel && !dom.analyticsPanel.classList.contains('open')) {
         dom.analyticsPanel.classList.add('open');
         if (dom.analyticsChevron) dom.analyticsChevron.classList.add('rotated');

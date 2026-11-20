@@ -39,37 +39,287 @@
 
 <body class="bg-slate-50 text-slate-900 min-h-screen antialiased selection:bg-emerald-100 selection:text-emerald-900">
 
-  <!-- Auth Bar -->
-  <div id="authBar" class="bg-white border-b border-slate-200">
+  <!-- Main Navigation Bar with Top-Right Dashboard Dropdown -->
+  <nav id="navBar" class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between">
-      <div id="authStatus" class="flex items-center gap-2 text-sm text-slate-500">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
-        <span>Not signed in</span>
-      </div>
-      <div id="authActions">
+      
+      <!-- Brand Logo & App Title -->
+      <a href="#" class="flex items-center gap-2.5 group">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center text-lg font-bold shadow-xs transition-transform group-hover:scale-105">
+          🥑
+        </div>
+        <div class="flex items-baseline gap-1.5">
+          <span class="text-base font-extrabold tracking-tight text-slate-900">DietPlanner</span>
+          <span class="hidden sm:inline-block px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wider">Pro</span>
+        </div>
+      </a>
+
+      <!-- Right Navigation Actions: Sign In OR User Dashboard Dropdown -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <span id="authStatus" class="hidden"></span>
+        
+        <!-- Google Sign-In Button (shown when logged out) -->
         <button
           id="btnGoogleSignIn"
           type="button"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 active:scale-[0.98] text-slate-700 border border-slate-200 text-sm font-semibold shadow-sm transition-all cursor-pointer"
+          class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 active:scale-[0.98] text-slate-700 border border-slate-200 text-xs sm:text-sm font-semibold shadow-xs transition-all cursor-pointer"
         >
           <svg class="w-4 h-4" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          Sign in with Google
+          <span class="hidden xs:inline">Sign in with Google</span>
+          <span class="xs:hidden">Sign In</span>
         </button>
-        <button
-          id="btnSignOut"
-          type="button"
-          class="hidden inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-[0.98] text-slate-600 text-sm font-semibold transition-all cursor-pointer"
-        >
-          Sign out
-        </button>
+
+        <!-- User Dropdown Trigger & Dropdown Menu (shown when logged in) -->
+        <div id="userDropdownWrapper" class="relative hidden">
+          <!-- Toggle Button -->
+          <button
+            id="btnUserDropdownToggle"
+            type="button"
+            aria-expanded="false"
+            aria-haspopup="true"
+            aria-label="Toggle user dashboard menu"
+            class="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-slate-800 transition-all cursor-pointer select-none"
+          >
+            <!-- User Avatar -->
+            <div class="relative w-7 h-7 sm:w-8 sm:h-8 rounded-lg overflow-hidden ring-1 ring-emerald-500/40 shrink-0">
+              <img id="navAvatarImg" src="" alt="Avatar" class="w-full h-full object-cover hidden" referrerpolicy="no-referrer" />
+              <div id="navAvatarFallback" class="w-full h-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center">?</div>
+            </div>
+
+            <!-- User Name + Label (hidden on very small screens, visible on xs+) -->
+            <div class="text-left hidden xs:block">
+              <div id="navUserName" class="text-xs font-bold text-slate-900 leading-tight max-w-[120px] truncate">Athlete</div>
+              <div class="text-[10px] font-semibold text-emerald-600 flex items-center gap-1 leading-none mt-0.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                Dashboard
+              </div>
+            </div>
+
+            <!-- Down Chevron -->
+            <svg id="navDropdownChevron" class="w-4 h-4 text-slate-500 transition-transform duration-200 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          <!-- Dropdown Popover Container: Personal Dashboard -->
+          <div
+            id="userDashboardDropdown"
+            class="hidden absolute right-0 top-full mt-2 w-[340px] sm:w-[460px] max-w-[calc(100vw-1.5rem)] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-3xl shadow-2xl border border-slate-700/80 p-4 sm:p-5 z-50 max-h-[85vh] overflow-y-auto"
+            role="menu"
+          >
+            <!-- Top Bar: Avatar, Greeting, Date & Sign Out -->
+            <div class="flex items-start justify-between gap-3 pb-3.5 border-b border-slate-700/70">
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="relative shrink-0">
+                  <img id="dashAvatarImg" src="" alt="Avatar" class="w-11 h-11 rounded-xl object-cover ring-2 ring-emerald-400/50" referrerpolicy="no-referrer" />
+                  <div id="dashAvatarFallback" class="hidden w-11 h-11 rounded-xl bg-emerald-600 text-white font-extrabold text-base flex items-center justify-center ring-2 ring-emerald-400/50">?</div>
+                  <span class="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 border-2 border-slate-900 rounded-full"></span>
+                </div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5">
+                    <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Personal Dashboard
+                    </span>
+                    <span id="dashDateBadge" class="text-[10px] text-slate-400 font-medium">Today</span>
+                  </div>
+                  <h3 class="text-sm sm:text-base font-extrabold text-white truncate mt-0.5">
+                    Welcome back, <span id="dashUserName" class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-200 to-white">Athlete</span>! 👋
+                  </h3>
+                  <p id="dashGreetingSub" class="text-[11px] text-emerald-400 font-medium truncate mt-0.5"></p>
+                  <p id="dashUserEmail" class="text-[11px] text-slate-400 truncate"></p>
+                </div>
+              </div>
+
+              <!-- Sign Out Button -->
+              <button
+                id="btnSignOut"
+                type="button"
+                title="Sign out of account"
+                class="shrink-0 p-2 rounded-xl bg-slate-800 hover:bg-rose-950/50 hover:text-rose-300 border border-slate-700 text-slate-400 text-xs font-semibold transition-all cursor-pointer"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Quick Action Row -->
+            <div class="grid grid-cols-2 gap-2 mt-3.5">
+              <button
+                id="dashBtnSaveNow"
+                type="button"
+                class="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
+                Save Today's Log
+              </button>
+              <button
+                id="dashBtnViewFullAnalytics"
+                type="button"
+                class="inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700 text-xs font-semibold transition-all cursor-pointer"
+              >
+                📋 View Full Log
+              </button>
+            </div>
+
+            <!-- Set Daily Targets Box -->
+            <div class="mt-3.5 bg-slate-800/80 rounded-2xl p-3 sm:p-3.5 border border-slate-700/60 shadow-inner">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                  <span class="text-xs font-bold text-white uppercase tracking-wider">Set Daily Targets</span>
+                </div>
+                <span class="text-[10px] text-slate-400">Saves to profile</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 mb-2">
+                <!-- Calorie Goal Input -->
+                <div class="bg-slate-900/80 rounded-xl p-2.5 border border-slate-700/70">
+                  <label for="dashCalInput" class="block text-[10px] font-semibold text-amber-400 uppercase tracking-wide mb-0.5">
+                    Target Calories
+                  </label>
+                  <div class="flex items-center gap-1">
+                    <input
+                      id="dashCalInput"
+                      type="number"
+                      min="500"
+                      max="6000"
+                      step="50"
+                      value="2700"
+                      class="w-full bg-transparent text-base font-black text-white focus:outline-none focus:ring-0"
+                    />
+                    <span class="text-[11px] text-slate-400 font-medium">kcal</span>
+                  </div>
+                </div>
+
+                <!-- Protein Goal Input -->
+                <div class="bg-slate-900/80 rounded-xl p-2.5 border border-slate-700/70">
+                  <label for="dashProInput" class="block text-[10px] font-semibold text-emerald-400 uppercase tracking-wide mb-0.5">
+                    Target Protein
+                  </label>
+                  <div class="flex items-center gap-1">
+                    <input
+                      id="dashProInput"
+                      type="number"
+                      min="20"
+                      max="350"
+                      step="5"
+                      value="120"
+                      class="w-full bg-transparent text-base font-black text-white focus:outline-none focus:ring-0"
+                    />
+                    <span class="text-[11px] text-slate-400 font-medium">g</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Presets -->
+              <div class="flex items-center gap-1 mb-2.5 flex-wrap">
+                <span class="text-[9px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Presets:</span>
+                <button type="button" class="dash-preset-btn px-2 py-0.5 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-[10px] font-medium text-slate-300 transition-colors cursor-pointer" data-cal="2800" data-pro="140">Bulk (2.8k/140g)</button>
+                <button type="button" class="dash-preset-btn px-2 py-0.5 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-[10px] font-medium text-slate-300 transition-colors cursor-pointer" data-cal="2400" data-pro="120">Maintain (2.4k/120g)</button>
+                <button type="button" class="dash-preset-btn px-2 py-0.5 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-[10px] font-medium text-slate-300 transition-colors cursor-pointer" data-cal="2000" data-pro="130">Cut (2.0k/130g)</button>
+              </div>
+
+              <!-- Save Target Button -->
+              <button
+                id="dashBtnSaveTargets"
+                type="button"
+                class="w-full py-2 px-3 rounded-xl bg-slate-700 hover:bg-emerald-600 active:scale-98 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                Apply &amp; Save Targets to Cloud
+              </button>
+            </div>
+
+            <!-- Consistency & Today's Status Row -->
+            <div class="grid grid-cols-2 gap-2.5 mt-3">
+              <!-- 7-Day Consistency -->
+              <div class="bg-slate-800/80 rounded-2xl p-3 border border-slate-700/60">
+                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">7-Day Consistency</span>
+                <div class="mt-1 flex items-baseline justify-between">
+                  <span id="dashConsistencyPct" class="text-base font-black text-white">0%</span>
+                  <span id="dashDaysCount" class="text-[11px] font-semibold text-emerald-400">0 / 7 days</span>
+                </div>
+                <div class="w-full bg-slate-700 rounded-full h-1.5 mt-1.5 overflow-hidden">
+                  <div id="dashConsistencyBar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+              </div>
+
+              <!-- Today's Log Status -->
+              <div class="bg-slate-800/80 rounded-2xl p-3 border border-slate-700/60 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                  <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Today's Status</span>
+                  <span id="dashTodayStatusBadge" class="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Not Saved</span>
+                </div>
+                <div class="mt-1">
+                  <div id="dashTodayCals" class="text-sm font-black text-white">0 kcal</div>
+                  <div id="dashTodayPro" class="text-[11px] font-semibold text-emerald-400">0g protein</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Past 7 Days Graph Section -->
+            <div class="mt-3.5 bg-slate-800/80 rounded-2xl p-3 sm:p-3.5 border border-slate-700/60">
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                  <span>📈 Past 7 Days Intake</span>
+                </span>
+                <!-- Graph Mode Switcher -->
+                <div class="inline-flex rounded-lg bg-slate-900 p-0.5 border border-slate-700/70">
+                  <button
+                    id="btnGraphModeCalories"
+                    type="button"
+                    class="px-2 py-0.5 rounded text-[10px] font-bold transition-all bg-amber-500 text-slate-950 shadow-xs cursor-pointer"
+                  >
+                    Calories
+                  </button>
+                  <button
+                    id="btnGraphModeProtein"
+                    type="button"
+                    class="px-2 py-0.5 rounded text-[10px] font-semibold text-slate-400 hover:text-white transition-all cursor-pointer"
+                  >
+                    Protein
+                  </button>
+                </div>
+              </div>
+
+              <!-- Chart Container -->
+              <div class="relative w-full h-44 sm:h-48 flex items-center justify-center">
+                <canvas id="weeklyChartCanvas"></canvas>
+                <div id="chartPlaceholder" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center p-3 bg-slate-800/95 rounded-xl">
+                  <div class="text-xl mb-1">📊</div>
+                  <p class="text-xs font-semibold text-slate-200">No logs saved in past 7 days</p>
+                  <p class="text-[10px] text-slate-400 mt-0.5">Click "Save Today's Log" to see your performance graph!</p>
+                </div>
+              </div>
+
+              <!-- Graph Footer -->
+              <div class="flex items-center justify-between pt-2 mt-1.5 border-t border-slate-700/60 text-[10px] text-slate-400">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center gap-1">
+                    <span id="chartLegendActualDot" class="w-2 h-2 rounded-xs bg-amber-400"></span> Intake
+                  </span>
+                  <span class="inline-flex items-center gap-1">
+                    <span class="w-2.5 h-0.5 border-t border-dashed border-slate-400"></span> Target
+                  </span>
+                </div>
+                <div id="chartSummaryInsight" class="text-slate-300 font-medium">
+                  Avg: <strong id="chartAvgValue" class="text-white">0 kcal</strong>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
       </div>
     </div>
-  </div>
+  </nav>
 
   <!-- Compact Floating Sticky Bar (Appears when scrolling past the main summary section) -->
   <div
     id="floatingSummaryBar"
-    class="fixed top-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm transform -translate-y-full transition-transform duration-200"
+    class="fixed top-[53px] left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm transform -translate-y-full transition-transform duration-200"
     aria-hidden="true"
   >
     <div class="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between gap-2 overflow-x-auto">
@@ -170,217 +420,6 @@
         Sign In with Google
       </button>
     </div>
-
-    <!-- Personal Dashboard Section (visible only when logged in) -->
-    <section id="personalDashboardSection" class="hidden mb-8 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-5 sm:p-7 text-white shadow-xl relative overflow-hidden border border-slate-700/60">
-      <!-- Decorative ambient glows -->
-      <div class="absolute -right-20 -top-20 w-72 h-72 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
-      <div class="absolute right-1/3 -bottom-20 w-72 h-72 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-      <!-- Top Bar: Avatar, Greeting, Date & Quick Save -->
-      <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-700/60">
-        <div class="flex items-center gap-3.5 sm:gap-4">
-          <div id="dashAvatarWrap" class="relative shrink-0">
-            <img id="dashAvatarImg" src="" alt="Avatar" class="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl object-cover ring-2 ring-emerald-400/50 shadow-md" />
-            <div id="dashAvatarFallback" class="hidden w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-emerald-600 text-white font-extrabold text-xl flex items-center justify-center ring-2 ring-emerald-400/50">?</div>
-            <span class="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-400 border-2 border-slate-900 rounded-full"></span>
-          </div>
-          <div>
-            <div class="flex flex-wrap items-center gap-2 mb-1">
-              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                PERSONAL DASHBOARD
-              </span>
-              <span id="dashDateBadge" class="text-xs text-slate-400 font-medium">Today</span>
-            </div>
-            <h2 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white flex items-center gap-1.5 flex-wrap">
-              Welcome back, <span id="dashUserName" class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-200 to-white">Athlete</span>! 👋
-            </h2>
-            <p id="dashGreetingSub" class="text-xs sm:text-sm text-slate-300 mt-0.5">
-              Review your 7-day intake graph, manage personal targets, and log today's meal plan.
-            </p>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-2.5 shrink-0 self-start md:self-center">
-          <button
-            id="dashBtnSaveNow"
-            type="button"
-            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition-all cursor-pointer"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" /></svg>
-            Save Today's Log
-          </button>
-          <button
-            id="dashBtnViewFullAnalytics"
-            type="button"
-            class="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 border border-slate-700 text-xs sm:text-sm font-semibold transition-all cursor-pointer"
-          >
-            📋 Log History
-          </button>
-        </div>
-      </div>
-
-      <!-- Dashboard Body: Two-Column Layout (Left: Target Settings & Summary | Right: Interactive 7-Day Graph) -->
-      <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-5 mt-6">
-
-        <!-- Left Column: Personal Target Settings & Quick Stats (5 Cols on LG) -->
-        <div class="lg:col-span-5 flex flex-col gap-4">
-
-          <!-- Target Calories & Protein Editor Box -->
-          <div class="bg-slate-800/80 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-slate-700/60 shadow-inner">
-            <div class="flex items-center justify-between mb-3">
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                <h3 class="text-sm font-bold text-white uppercase tracking-wider">Set Daily Targets</h3>
-              </div>
-              <span class="text-[11px] text-slate-400 font-medium">Saves to profile</span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3 mb-3">
-              <!-- Calorie Goal Input -->
-              <div class="bg-slate-900/80 rounded-xl p-3 border border-slate-700/70">
-                <label for="dashCalInput" class="block text-[11px] font-semibold text-amber-400 uppercase tracking-wide mb-1">
-                  Target Calories
-                </label>
-                <div class="flex items-center gap-1.5">
-                  <input
-                    id="dashCalInput"
-                    type="number"
-                    min="500"
-                    max="6000"
-                    step="50"
-                    value="2700"
-                    class="w-full bg-transparent text-lg font-black text-white focus:outline-none focus:ring-0"
-                  />
-                  <span class="text-xs text-slate-400 font-medium">kcal</span>
-                </div>
-              </div>
-
-              <!-- Protein Goal Input -->
-              <div class="bg-slate-900/80 rounded-xl p-3 border border-slate-700/70">
-                <label for="dashProInput" class="block text-[11px] font-semibold text-emerald-400 uppercase tracking-wide mb-1">
-                  Target Protein
-                </label>
-                <div class="flex items-center gap-1.5">
-                  <input
-                    id="dashProInput"
-                    type="number"
-                    min="20"
-                    max="350"
-                    step="5"
-                    value="120"
-                    class="w-full bg-transparent text-lg font-black text-white focus:outline-none focus:ring-0"
-                  />
-                  <span class="text-xs text-slate-400 font-medium">g</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Quick Presets -->
-            <div class="flex items-center gap-1.5 mb-3 flex-wrap">
-              <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Presets:</span>
-              <button type="button" class="dash-preset-btn px-2 py-0.5 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-[11px] font-medium text-slate-300 transition-colors cursor-pointer" data-cal="2800" data-pro="140">Bulk (2.8k/140g)</button>
-              <button type="button" class="dash-preset-btn px-2 py-0.5 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-[11px] font-medium text-slate-300 transition-colors cursor-pointer" data-cal="2400" data-pro="120">Maintain (2.4k/120g)</button>
-              <button type="button" class="dash-preset-btn px-2 py-0.5 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-[11px] font-medium text-slate-300 transition-colors cursor-pointer" data-cal="2000" data-pro="130">Cut (2.0k/130g)</button>
-            </div>
-
-            <!-- Save Target Button -->
-            <button
-              id="dashBtnSaveTargets"
-              type="button"
-              class="w-full py-2 px-3 rounded-xl bg-slate-700 hover:bg-emerald-600 active:scale-98 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-            >
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-              Apply &amp; Save Targets to Cloud
-            </button>
-          </div>
-
-          <!-- Quick Health & Consistency Cards -->
-          <div class="grid grid-cols-2 gap-3">
-            <!-- 7-Day Consistency -->
-            <div class="bg-slate-800/80 rounded-2xl p-3.5 border border-slate-700/60">
-              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">7-Day Consistency</span>
-              <div class="mt-1 flex items-baseline justify-between">
-                <span id="dashConsistencyPct" class="text-xl font-black text-white">0%</span>
-                <span id="dashDaysCount" class="text-xs font-semibold text-emerald-400">0 / 7 days</span>
-              </div>
-              <div class="w-full bg-slate-700 rounded-full h-1.5 mt-2 overflow-hidden">
-                <div id="dashConsistencyBar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
-              </div>
-            </div>
-
-            <!-- Today's Log Status -->
-            <div class="bg-slate-800/80 rounded-2xl p-3.5 border border-slate-700/60 flex flex-col justify-between">
-              <div class="flex items-center justify-between">
-                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Today's Status</span>
-                <span id="dashTodayStatusBadge" class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">Not Saved</span>
-              </div>
-              <div class="mt-1">
-                <div id="dashTodayCals" class="text-base font-black text-white">0 kcal</div>
-                <div id="dashTodayPro" class="text-xs font-semibold text-emerald-400">0g protein</div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Right Column: Past Week Data Graph (7 Cols on LG) -->
-        <div class="lg:col-span-7 bg-slate-800/80 backdrop-blur-sm rounded-2xl p-4 sm:p-5 border border-slate-700/60 flex flex-col justify-between">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-            <div>
-              <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                <span>📈 Past 7 Days Intake vs Target</span>
-              </h3>
-              <p class="text-[11px] text-slate-400 mt-0.5">Compares your daily logged intake against your set targets</p>
-            </div>
-
-            <!-- Graph Mode Switcher -->
-            <div class="inline-flex rounded-xl bg-slate-900/90 p-1 border border-slate-700/70 shrink-0 self-start sm:self-auto">
-              <button
-                id="btnGraphModeCalories"
-                type="button"
-                class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-amber-500 text-slate-950 shadow-xs cursor-pointer"
-              >
-                Calories
-              </button>
-              <button
-                id="btnGraphModeProtein"
-                type="button"
-                class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all cursor-pointer"
-              >
-                Protein
-              </button>
-            </div>
-          </div>
-
-          <!-- Chart Container -->
-          <div class="relative w-full h-56 sm:h-64 flex items-center justify-center">
-            <canvas id="weeklyChartCanvas"></canvas>
-            <div id="chartPlaceholder" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-slate-800/95 rounded-xl">
-              <div class="text-2xl mb-1">📊</div>
-              <p class="text-xs font-semibold text-slate-200">No logs saved in the past 7 days yet</p>
-              <p class="text-[11px] text-slate-400 mt-1 max-w-xs">Adjust your portions below and click "Save Today's Log" to populate your 7-day performance graph!</p>
-            </div>
-          </div>
-
-          <!-- Graph Footer Legend & Insight -->
-          <div class="flex flex-wrap items-center justify-between gap-2 pt-3 mt-2 border-t border-slate-700/60 text-[11px] text-slate-400">
-            <div class="flex items-center gap-3">
-              <span class="inline-flex items-center gap-1.5">
-                <span id="chartLegendActualDot" class="w-2.5 h-2.5 rounded-sm bg-amber-400"></span> Actual Intake
-              </span>
-              <span class="inline-flex items-center gap-1.5">
-                <span class="w-3.5 h-0.5 border-t-2 border-dashed border-slate-400"></span> Daily Target
-              </span>
-            </div>
-            <div id="chartSummaryInsight" class="text-slate-300 font-medium">
-              Average: <strong id="chartAvgValue" class="text-white">0 kcal</strong>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </section>
 
     <!-- Prominent Daily Totals Summary Section (Sticky on large screens, observed for mobile floating bar) -->
     <section

@@ -95,3 +95,19 @@ input[type='number'] {
 .save-pulse {
   animation: subtlePulse 2s ease-in-out infinite;
 }
+
+/* Custom scrollbar for dashboard dropdown */
+#userDashboardDropdown::-webkit-scrollbar {
+  width: 6px;
+}
+#userDashboardDropdown::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 9999px;
+}
+#userDashboardDropdown::-webkit-scrollbar-thumb {
+  background: rgba(51, 65, 85, 0.8);
+  border-radius: 9999px;
+}
+#userDashboardDropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.8);
+}
