@@ -1,6 +1,6 @@
 html {
-  /* Disable double-tap zoom while retaining native pinch-to-zoom. */
-  touch-action: manipulation;
+  /* Keep page panning but disable pinch and double-tap zoom on touch screens. */
+  touch-action: pan-x pan-y;
 }
 
 body {
